@@ -23,6 +23,7 @@ from garth.cli._helpers import (
     _resume,
     asdict,
 )
+from garth.cli.data import data_app
 from garth.cli.users import app as users_app
 
 
@@ -122,6 +123,7 @@ def upload(
     _dump_json(result)
 
 
+app.add_typer(data_app, name="data")
 app.add_typer(users_app, name="users")
 
 
