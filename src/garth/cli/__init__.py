@@ -24,6 +24,7 @@ from garth.cli._helpers import (
     asdict,
 )
 from garth.cli.data import data_app
+from garth.cli.stats import stats_app
 from garth.cli.users import app as users_app
 
 
@@ -124,6 +125,7 @@ def upload(
 
 
 app.add_typer(data_app, name="data")
+app.add_typer(stats_app, name="stats")
 app.add_typer(users_app, name="users")
 
 
