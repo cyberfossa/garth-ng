@@ -9,9 +9,10 @@ jobs:
     runs-on: ubuntu-latest
     environment:
       name: pypi
-      url: https://pypi.org/p/garth
+      url: https://pypi.org/p/garth-ng
     permissions:
       id-token: write
+    # Uses PyPI Trusted Publisher (OIDC) — no password needed
 
     steps:
       - uses: actions/checkout@v6

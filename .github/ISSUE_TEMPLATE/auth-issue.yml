@@ -7,14 +7,14 @@ body:
       value: |
         ## Before submitting
 
-        Please try reproducing the issue with `uvx garth login` to isolate
+        Please try reproducing the issue with `uvx garth-ng login` to isolate
         whether the problem is with Garth or your integration.
 
   - type: checkboxes
     attributes:
       label: Debugging steps completed
       options:
-        - label: I tried `uvx garth login` and can reproduce the issue
+        - label: I tried `uvx garth-ng login` and can reproduce the issue
           required: true
 
   - type: textarea
@@ -29,7 +29,7 @@ body:
       label: Steps to reproduce
       description: How can we reproduce this issue?
       placeholder: |
-        1. Run `uvx garth login`
+        1. Run `uvx garth-ng login`
         2. Enter credentials
         3. See error...
     validations:
@@ -44,7 +44,7 @@ body:
   - type: input
     attributes:
       label: Garth version
-      description: Run `pip show garth` or check your requirements
+      description: Run `pip show garth-ng` or check your requirements
       placeholder: "0.6.0"
 
   - type: input
@@ -57,8 +57,9 @@ body:
     attributes:
       label: Telemetry session ID
       description: |
-        Garth prints a session ID to stdout on import (e.g. "Garth session: a01e3fc1...").
-        Please share it so we can look up the request logs.
-        If you disabled telemetry (`GARTH_TELEMETRY_ENABLED=false`),
-        re-enable it and reproduce the issue to generate a session ID.
+        Garth prints a session ID to stdout on import
+        (e.g. "Garth session: a01e3fc1..."). Please share it so we can look
+        up the request logs. If you disabled telemetry
+        (`GARTH_TELEMETRY_ENABLED=false`), re-enable it and reproduce the
+        issue to generate a session ID.
       placeholder: "a01e3fc1d5ac4c9a"
