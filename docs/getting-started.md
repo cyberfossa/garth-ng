@@ -11,7 +11,7 @@ python -m pip install garth
 ### From source
 
 ```bash
-gh repo clone matin/garth
+gh repo clone cyberfossa/garth-ng
 cd garth
 make install
 ```

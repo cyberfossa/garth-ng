@@ -10,7 +10,7 @@ multiple programming languages.
 
 Garmin recently changed their auth flow, breaking the mobile auth approach
 that Garth and other libraries depend on
-([#217](https://github.com/matin/garth/issues/217)). This is the final
+([#217](https://github.com/cyberfossa/garth-ng/issues/217)). This is the final
 release.
 
 ## For existing users
