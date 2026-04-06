@@ -1,9 +1,9 @@
 [project]
-name = "garth"
+name = "garth-ng"
 dynamic = ["version"]
-description = "Garmin SSO auth + Connect client"
+description = "Garmin SSO auth + Connect Python client (maintained fork of matin/garth)"
 authors = [
-    {name = "Matin Tamizi", email = "mtamizi@duck.com"},
+    {name = "CyberFossa", email = "cyberfossadev@proton.me"},
 ]
 dependencies = [
     "requests>=2.0.0,<3.0.0",
@@ -16,7 +16,7 @@ requires-python = ">=3.10"
 readme = "README.md"
 license = {text = "MIT"}
 classifiers = [
-    "Development Status :: 7 - Inactive",
+    "Development Status :: 4 - Beta",
     "License :: OSI Approved :: MIT License",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
@@ -28,14 +28,13 @@ classifiers = [
     "Operating System :: POSIX :: Linux",
     "Operating System :: OS Independent",
 ]
-keywords = ["garmin", "garmin api", "garmin connect", "garmin sso"]
+keywords = ["garmin", "garth", "garmin-connect", "oauth", "python", "fork", "maintained"]
 
 [project.urls]
-"Homepage" = "https://github.com/matin/garth"
-"Documentation" = "https://garth.readthedocs.io"
-"Repository" = "https://github.com/matin/garth"
-"Issues" = "https://github.com/matin/garth/issues"
-"Changelog" = "https://github.com/matin/garth/releases"
+"Homepage" = "https://github.com/cyberfossa/garth-ng"
+"Repository" = "https://github.com/cyberfossa/garth-ng"
+"Issues" = "https://github.com/cyberfossa/garth-ng/issues"
+"Changelog" = "https://github.com/cyberfossa/garth-ng/releases"
 
 [project.optional-dependencies]
 docs = [
@@ -48,6 +47,9 @@ build-backend = "hatchling.build"
 
 [tool.hatch.version]
 path = "src/garth/version.py"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/garth"]
 
 [tool.pytest.ini_options]
 addopts = "--ignore=__pypackages__ --ignore-glob=*.yaml"

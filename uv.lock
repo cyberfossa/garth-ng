@@ -690,7 +690,7 @@ wheels = [
 ]
 
 [[package]]
-name = "garth"
+name = "garth-ng"
 source = { editable = "." }
 dependencies = [
     { name = "logfire" },
