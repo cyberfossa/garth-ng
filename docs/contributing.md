@@ -5,7 +5,7 @@
 ### Clone and install
 
 ```bash
-gh repo clone matin/garth
+gh repo clone cyberfossa/garth-ng
 cd garth
 make install
 ```

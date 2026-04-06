@@ -1,10 +1,5 @@
 # Getting Started
 
-!!! warning "Deprecated"
-    **Garth is deprecated and no longer maintained.** New logins will not work
-    due to changes in Garmin's auth flow. See the
-    [announcement](https://github.com/matin/garth/discussions/222) for details.
-
 ## Installation
 
 ### From PyPI
@@ -16,7 +11,7 @@ python -m pip install garth
 ### From source
 
 ```bash
-gh repo clone matin/garth
+gh repo clone cyberfossa/garth-ng
 cd garth
 make install
 ```

@@ -29,7 +29,7 @@ body:
   - type: input
     attributes:
       label: Garth version
-      description: Run `pip show garth` or check your requirements
+      description: Run `pip show garth-ng` or check your requirements
       placeholder: "0.6.0"
 
   - type: input
