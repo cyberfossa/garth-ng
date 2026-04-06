@@ -2,12 +2,6 @@
 
 Garmin SSO auth + Connect Python client
 
-!!! warning "Deprecated"
-    **Garth is deprecated and no longer maintained.** Garmin changed their auth
-    flow, breaking the mobile auth approach that Garth depends on. See the
-    [announcement](https://github.com/matin/garth/discussions/222) for details.
-    Anyone is welcome to fork Garth as a starting point for a new library.
-
 ## About
 
 Garth was a Python library for Garmin Connect API access with OAuth
