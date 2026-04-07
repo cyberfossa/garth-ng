@@ -1,7 +1,5 @@
 from unittest.mock import MagicMock
 
-from requests import Session
-
 from garth.http import Client
 from garth.telemetry import (
     DEFAULT_TOKEN,
@@ -68,42 +66,18 @@ def test_telemetry_configure_disabled(monkeypatch):
     assert t.enabled is False
 
 
-def test_telemetry_enabled_request(authed_client: Client, monkeypatch):
+def test_telemetry_enabled_request(monkeypatch):
+    monkeypatch.delenv("GARTH_TELEMETRY_ENABLED", raising=False)
+    monkeypatch.delenv("GARTH_TELEMETRY_TOKEN", raising=False)
+    monkeypatch.delenv("GARTH_TELEMETRY_SEND_TO_LOGFIRE", raising=False)
+
     captured_data = []
 
     def capture_callback(data):
         captured_data.append(data)
 
-    authed_client.configure(
-        telemetry_enabled=True,
-        telemetry_callback=capture_callback,
-    )
-
-    assert authed_client.telemetry.enabled is True
-
-    import json
-    import sys
-
-    sys.path.insert(
-        0, str(__import__("pathlib").Path(__file__).resolve().parent)
-    )
-    from helpers import (
-        load_cassette as _load_cassette,
-        parse_response_body,
-    )
-
-    interactions = _load_cassette(
-        "tests/cassettes/test_telemetry_enabled_request.yaml"
-    )
-    profile_data = parse_response_body(interactions[0])
-
-    mock_resp = MagicMock()
-    mock_resp.status_code = 200
-    mock_resp.ok = True
-    mock_resp.json.return_value = profile_data
-    mock_resp.text = json.dumps(profile_data)
-    mock_resp.headers = {"Content-Type": "application/json"}
-    mock_resp.raise_for_status.return_value = None
+    t = Telemetry()
+    t.configure(enabled=True, callback=capture_callback)
 
     mock_request = MagicMock()
     mock_request.method = "GET"
@@ -112,18 +86,14 @@ def test_telemetry_enabled_request(authed_client: Client, monkeypatch):
     )
     mock_request.headers = {}
     mock_request.body = None
+
+    mock_resp = MagicMock()
+    mock_resp.status_code = 200
+    mock_resp.headers = {"Content-Type": "application/json"}
+    mock_resp.text = '{"displayName": "test_user"}'
     mock_resp.request = mock_request
 
-    def mock_sess_request(*args, **kwargs):
-        for hook in authed_client.sess.hooks.get("response", []):
-            hook(mock_resp)
-        return mock_resp
-
-    authed_client.sess.request = mock_sess_request
-
-    profile = authed_client.connectapi("/userprofile-service/socialProfile")
-    assert profile is not None
-    assert "displayName" in profile
+    t.on_response(mock_resp)
 
     assert len(captured_data) == 1
     assert captured_data[0]["method"] == "GET"
@@ -212,7 +182,7 @@ def test_response_hook_with_string_body():
     response.headers = {"Content-Type": "application/json"}
     response.text = '{"access_token": "token123"}'
 
-    t._response_hook(response)
+    t.on_response(response)
 
     assert len(captured_data) == 1
     data = captured_data[0]
@@ -241,7 +211,7 @@ def test_response_hook_with_bytes_body():
     response.headers = {"Content-Type": "application/json"}
     response.text = '{"data": "ok"}'
 
-    t._response_hook(response)
+    t.on_response(response)
 
     assert len(captured_data) == 1
     assert "secret" not in captured_data[0]["request_body"]
@@ -263,7 +233,7 @@ def test_response_hook_no_body():
     response.headers = {"Content-Type": "application/json"}
     response.text = '{"data": "ok"}'
 
-    t._response_hook(response)
+    t.on_response(response)
 
     assert len(captured_data) == 1
     assert "request_body" not in captured_data[0]
@@ -276,7 +246,7 @@ def test_response_hook_disabled():
     t.callback = lambda data: captured_data.append(data)
 
     response = MagicMock()
-    t._response_hook(response)
+    t.on_response(response)
 
     assert len(captured_data) == 0
 
@@ -302,7 +272,7 @@ def test_response_hook_handles_exceptions():
     response.text = "{}"
 
     # Should not raise
-    t._response_hook(response)
+    t.on_response(response)
 
 
 def test_scrubbing_callback_bypasses_logfire_scrubbing():
@@ -329,33 +299,6 @@ def test_telemetry_env_enabled_with_mock(monkeypatch):
     assert t.enabled is True
     assert t._logfire_configured is True
     mock_logfire.configure.assert_called_once()
-
-
-def test_telemetry_attach_to_session():
-    t = Telemetry()
-    t.enabled = True
-
-    session = Session()
-    initial_hook_count = len(session.hooks["response"])
-
-    t.attach(session)
-
-    assert len(session.hooks["response"]) == initial_hook_count + 1
-    assert t._response_hook in session.hooks["response"]
-
-
-def test_telemetry_attach_idempotent():
-    t = Telemetry()
-    t.enabled = True
-
-    session = Session()
-    initial_hook_count = len(session.hooks["response"])
-
-    t.attach(session)
-    t.attach(session)
-    t.attach(session)
-
-    assert len(session.hooks["response"]) == initial_hook_count + 1
 
 
 def test_telemetry_custom_callback_skips_logfire(monkeypatch):

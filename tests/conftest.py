@@ -1,6 +1,7 @@
 import os
 import sys
 import time
+from datetime import datetime, timezone
 from pathlib import Path
 
 
@@ -8,11 +9,11 @@ os.environ["GARTH_TELEMETRY_ENABLED"] = "false"
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 import pytest
-from helpers import setup_cassette
-from requests import Session
+from curl_cffi.requests import Session
 
-from garth.auth_tokens import OAuth1Token, OAuth2Token
+from garth.auth_tokens import OAuth2Token
 from garth.http import Client
+from tests.helpers import setup_cassette
 
 
 @pytest.fixture(autouse=True)
@@ -35,51 +36,28 @@ def client(session, monkeypatch) -> Client:
 
 
 @pytest.fixture
-def oauth1_token_dict() -> dict:
-    return dict(
-        oauth_token="7fdff19aa9d64dda83e9d7858473aed1",
-        oauth_token_secret="49919d7c4c8241ac93fb4345886fbcea",
-        mfa_token="ab316f8640f3491f999f3298f3d6f1bb",
-        mfa_expiration_timestamp="2024-08-02 05:56:10.000",
-        domain="garmin.com",
-    )
-
-
-@pytest.fixture
-def oauth1_token(oauth1_token_dict) -> OAuth1Token:
-    return OAuth1Token(**oauth1_token_dict)
-
-
-@pytest.fixture
-def oauth2_token_dict() -> dict:
-    return dict(
-        scope="CONNECT_READ CONNECT_WRITE",
-        jti="foo",
-        token_type="Bearer",
+def oauth2_token() -> OAuth2Token:
+    return OAuth2Token(
         access_token="bar",
         refresh_token="baz",
         expires_in=3599,
+        expires_at=time.time() + 3599,
         refresh_token_expires_in=7199,
+        refresh_token_expires_at=time.time() + 7199,
+        scope="CONNECT_READ CONNECT_WRITE",
+        jti="foo",
+        mfa_token="mfa-token",
+        mfa_expiration_timestamp=datetime.fromtimestamp(
+            time.time() + 86400, tz=timezone.utc
+        ).strftime("%Y-%m-%dT%H:%M:%S.000Z"),
+        mfa_expiration_timestamp_millis=int((time.time() + 86400) * 1000),
     )
 
 
 @pytest.fixture
-def oauth2_token(oauth2_token_dict: dict) -> OAuth2Token:
-    token = OAuth2Token(
-        expires_at=int(time.time() + 3599),
-        refresh_token_expires_at=int(time.time() + 7199),
-        **oauth2_token_dict,
-    )
-    return token
-
-
-@pytest.fixture
-def authed_client(
-    oauth1_token: OAuth1Token,
-    oauth2_token: OAuth2Token,
-) -> Client:
+def authed_client(oauth2_token: OAuth2Token) -> Client:
     client = Client()
-    client.configure(oauth1_token=oauth1_token, oauth2_token=oauth2_token)
+    client.oauth2_token = oauth2_token
     client._garth_home = None
     assert client.oauth2_token and isinstance(client.oauth2_token, OAuth2Token)
     assert not client.oauth2_token.expired

@@ -27,7 +27,9 @@ def main():
         case "login":
             email = input("Email: ")
             password = getpass.getpass("Password: ")
-            garth.login(email, password)
+            garth.login(
+                email, password, prompt_mfa=lambda: input("Enter MFA code: ")
+            )
             token = garth.client.dumps()
             print(token)
         case _:
