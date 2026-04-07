@@ -3,7 +3,7 @@ name = "garth-ng"
 dynamic = ["version"]
 description = "Garmin SSO auth + Connect Python client (maintained fork of matin/garth)"
 authors = [
-    {name = "CyberFossa", email = "cyberfossadev@proton.me"},
+    { name = "CyberFossa", email = "cyberfossadev@proton.me" },
 ]
 dependencies = [
     "curl_cffi>=0.7,<1.0",
@@ -13,7 +13,7 @@ dependencies = [
 ]
 requires-python = ">=3.10"
 readme = "README.md"
-license = {text = "MIT"}
+license = { text = "MIT" }
 classifiers = [
     "Development Status :: 4 - Beta",
     "License :: OSI Approved :: MIT License",
@@ -27,7 +27,15 @@ classifiers = [
     "Operating System :: POSIX :: Linux",
     "Operating System :: OS Independent",
 ]
-keywords = ["garmin", "garth", "garmin-connect", "oauth", "python", "fork", "maintained"]
+keywords = [
+    "garmin",
+    "garth",
+    "garmin-connect",
+    "oauth",
+    "python",
+    "fork",
+    "maintained",
+]
 
 [project.urls]
 "Homepage" = "https://github.com/cyberfossa/garth-ng"
@@ -55,9 +63,6 @@ addopts = "--ignore=__pypackages__ --ignore-glob=*.yaml"
 
 [tool.ty.src]
 include = ["src"]
-
-[tool.ty.rules]
-invalid-method-override = "warn"
 
 [tool.ruff]
 line-length = 79
