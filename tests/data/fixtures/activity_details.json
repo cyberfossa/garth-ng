@@ -1,0 +1,12 @@
+{
+  "activityId": 0,
+  "measurementCount": 0,
+  "metricsCount": 0,
+  "totalMetricsCount": 0,
+  "metricDescriptors": null,
+  "activityDetailMetrics": null,
+  "geoPolylineDTO": null,
+  "heartRateDTOs": null,
+  "pendingData": null,
+  "detailsAvailable": false
+}
