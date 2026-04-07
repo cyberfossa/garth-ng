@@ -3,35 +3,35 @@ from abc import ABC, abstractmethod
 from concurrent.futures import ThreadPoolExecutor
 from datetime import date
 from itertools import chain
-
-from typing_extensions import Self
+from typing import TypeVar
 
 from .. import http
 from ..utils import date_range, format_end_date
 
 
 MAX_WORKERS = 10
+_DataT = TypeVar("_DataT", bound="Data")
 
 
 class Data(ABC):
     @classmethod
     @abstractmethod
     def get(
-        cls,
+        cls: type[_DataT],
         day: date | str | None = None,
         *,
         client: http.Client | None = None,
-    ) -> Self | builtins.list[Self] | None: ...
+    ) -> _DataT | builtins.list[_DataT] | None: ...
 
     @classmethod
     def list(
-        cls,
+        cls: type[_DataT],
         end: date | str | None = None,
         days: int = 1,
         *,
         client: http.Client | None = None,
         max_workers: int = MAX_WORKERS,
-    ) -> builtins.list[Self]:
+    ) -> builtins.list[_DataT]:
         client = client or http.client
         end = format_end_date(end)
 
