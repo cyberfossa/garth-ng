@@ -1,1 +1,14 @@
-{}
+[
+  "activityType",
+  "workoutType",
+  "aerobicTrainingEffect",
+  "anaerobicTrainingEffect",
+  "adaptiveCoachingWorkoutStatus",
+  "parentId",
+  "workoutGroupEnumerator",
+  "calories",
+  "duration",
+  "distance",
+  "avgHR",
+  "maxHR"
+]

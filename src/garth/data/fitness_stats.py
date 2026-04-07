@@ -82,3 +82,22 @@ class FitnessActivity:
             activities.append(cls(**item))
 
         return sorted(activities, key=lambda x: x.start_local)
+
+    @staticmethod
+    def available_metrics(
+        *,
+        client: http.Client | None = None,
+    ) -> list[str]:
+        """Get list of available fitness metrics.
+
+        Returns:
+            List of available metric names that can be queried via the
+            fitness stats service.
+        """
+        client = client or http.client
+        path = "/fitnessstats-service/activity/availableMetrics"
+        data = client.connectapi(path)
+        assert isinstance(data, list), (
+            f"Expected list from {path}, got {type(data).__name__}"
+        )
+        return data
