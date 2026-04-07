@@ -1,9 +1,10 @@
 import time
 
+from pydantic import ConfigDict
 from pydantic.dataclasses import dataclass
 
 
-@dataclass(repr=False)
+@dataclass(repr=False, config=ConfigDict(extra="ignore"))
 class OAuth2Token:
     access_token: str
     refresh_token: str
@@ -18,6 +19,16 @@ class OAuth2Token:
     mfa_expiration_timestamp: str | None = None
     mfa_expiration_timestamp_millis: int | None = None
     client_id: str | None = None
+
+    def __post_init__(self) -> None:
+        now = time.time()
+        if self.expires_at is None and self.expires_in is not None:
+            self.expires_at = now + self.expires_in
+        if (
+            self.refresh_token_expires_at is None
+            and self.refresh_token_expires_in is not None
+        ):
+            self.refresh_token_expires_at = now + self.refresh_token_expires_in
 
     @property
     def expired(self) -> bool:

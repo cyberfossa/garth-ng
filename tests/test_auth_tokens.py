@@ -14,7 +14,7 @@ def test_oauth2_token_construction():
     assert token.refresh_token == "test_refresh"
     assert token.expires_in == 97200
     assert token.token_type == "Bearer"
-    assert token.expires_at is None
+    assert token.expires_at is not None
     assert token.scope is None
     assert token.jti is None
     assert token.mfa_token is None

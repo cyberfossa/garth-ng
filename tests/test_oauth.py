@@ -11,7 +11,6 @@ from garth.oauth import (
     DI_CLIENT_IDS,
     DI_GRANT_TYPE_REFRESH,
     DI_GRANT_TYPE_TICKET,
-    _as_int,
     _build_basic_auth,
     exchange_service_ticket,
     refresh_oauth2_token,
@@ -78,6 +77,11 @@ class FakeResponse:
     def raise_for_status(self) -> None:
         if self._error is not None:
             raise self._error
+
+    def json(self) -> dict:
+        import json
+
+        return json.loads(self.content)
 
 
 class FakeSession:
@@ -312,12 +316,3 @@ def test_exchange_tries_all_client_ids(monkeypatch: MonkeyPatch):
         == "GARMIN_CONNECT_MOBILE_ANDROID_DI_2025Q2"
     )
     assert second_call_data["client_id"] == "FALLBACK_CLIENT_ID"
-
-
-def test_as_int_returns_default_for_non_numeric_string():
-    assert _as_int("never") == 0
-    assert _as_int("never", default=42) == 42
-
-
-def test_as_int_returns_default_for_empty_string():
-    assert _as_int("") == 0
