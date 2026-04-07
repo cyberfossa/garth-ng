@@ -1,10 +1,15 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, Protocol, runtime_checkable
+from typing import TYPE_CHECKING, NamedTuple, Protocol, runtime_checkable
 
 
 if TYPE_CHECKING:
     from curl_cffi.requests import Session
+
+
+class LoginResult(NamedTuple):
+    ticket: str
+    service_url: str
 
 
 @runtime_checkable
@@ -18,7 +23,7 @@ class LoginStrategy(Protocol):
         email: str,
         password: str,
         domain: str,
-    ) -> str:
+    ) -> LoginResult:
         """Perform login, return serviceTicketId."""
         ...
 
@@ -26,8 +31,8 @@ class LoginStrategy(Protocol):
         self,
         session: Session,
         domain: str,
-        state: dict[str, Any],
+        state: dict[str, object],
         mfa_code: str,
-    ) -> str:
+    ) -> LoginResult:
         """Complete MFA, return serviceTicketId."""
         ...
