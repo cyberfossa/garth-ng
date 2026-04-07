@@ -17,6 +17,7 @@ class OAuth2Token:
     mfa_token: str | None = None
     mfa_expiration_timestamp: str | None = None
     mfa_expiration_timestamp_millis: int | None = None
+    client_id: str | None = None
 
     @property
     def expired(self) -> bool:

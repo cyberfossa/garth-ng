@@ -200,6 +200,57 @@ def test_refresh_oauth2_token():
     assert call_data["client_id"] == DI_CLIENT_IDS[0]
 
 
+def test_refresh_uses_token_client_id():
+    response = FakeResponse(
+        content=make_token_payload(
+            access_token="access-new",
+            refresh_token="refresh-new",
+            expires_in=1800,
+        )
+    )
+    session = FakeSession([response])
+    old_token = OAuth2Token(
+        access_token="access-old",
+        refresh_token="test_refresh",
+        expires_in=3600,
+        client_id="CUSTOM_CLIENT_ID",
+    )
+
+    _ = refresh_oauth2_token(
+        cast(Session, cast(object, session)),
+        old_token,
+    )
+
+    call_data = session.calls[0]["data"]
+    assert isinstance(call_data, dict)
+    assert call_data["client_id"] == "CUSTOM_CLIENT_ID"
+
+
+def test_refresh_falls_back_when_no_client_id():
+    response = FakeResponse(
+        content=make_token_payload(
+            access_token="access-new",
+            refresh_token="refresh-new",
+            expires_in=1800,
+        )
+    )
+    session = FakeSession([response])
+    old_token = OAuth2Token(
+        access_token="access-old",
+        refresh_token="test_refresh",
+        expires_in=3600,
+    )
+
+    _ = refresh_oauth2_token(
+        cast(Session, cast(object, session)),
+        old_token,
+    )
+
+    call_data = session.calls[0]["data"]
+    assert isinstance(call_data, dict)
+    assert call_data["client_id"] == DI_CLIENT_IDS[0]
+
+
 def test_build_basic_auth():
     auth = _build_basic_auth("client:id")
     assert auth == "Y2xpZW50OmlkOg=="

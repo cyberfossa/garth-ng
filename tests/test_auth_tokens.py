@@ -89,3 +89,14 @@ def test_oauth2_token_preserves_jti_and_mfa_fields(
     assert oauth2_token.mfa_expiration_timestamp.endswith("Z")
     assert isinstance(oauth2_token.mfa_expiration_timestamp_millis, int)
     assert oauth2_token.mfa_expiration_timestamp_millis > 0
+
+
+def test_oauth2_token_no_client_id_defaults_to_none():
+    token = OAuth2Token(
+        access_token="a",
+        refresh_token="b",
+        expires_in=3600,
+        token_type="Bearer",
+    )
+
+    assert token.client_id is None

@@ -33,6 +33,27 @@ def test_dump_and_load(oauth2_token: OAuth2Token):
         assert new_client.oauth2_token == oauth2_token
 
 
+def test_dump_load_preserves_client_id():
+    with tempfile.TemporaryDirectory() as tempdir:
+        client = Client()
+        client.oauth2_token = OAuth2Token(
+            access_token="token-a",
+            refresh_token="token-b",
+            expires_in=3600,
+            client_id="GARMIN_CONNECT_MOBILE_ANDROID_DI_2025Q2",
+        )
+        client.dump(tempdir)
+
+        loaded_client = Client()
+        loaded_client.load(tempdir)
+
+        assert loaded_client.oauth2_token is not None
+        assert (
+            loaded_client.oauth2_token.client_id
+            == "GARMIN_CONNECT_MOBILE_ANDROID_DI_2025Q2"
+        )
+
+
 def test_legacy_oauth1_detection():
     with tempfile.TemporaryDirectory() as tempdir:
         with open(os.path.join(tempdir, "oauth1_token.json"), "w") as f:

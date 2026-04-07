@@ -54,7 +54,7 @@ def refresh_oauth2_token(
 ) -> OAuth2Token:
     return _do_exchange(
         session,
-        client_id=DI_CLIENT_IDS[0],
+        client_id=oauth2_token.client_id or DI_CLIENT_IDS[0],
         grant_type=DI_GRANT_TYPE_REFRESH,
         extra_params={"refresh_token": oauth2_token.refresh_token},
     )
@@ -130,6 +130,7 @@ def _do_exchange(
         mfa_token=mfa_token,
         mfa_expiration_timestamp=mfa_ts,
         mfa_expiration_timestamp_millis=mfa_ms,
+        client_id=client_id,
     )
 
 
