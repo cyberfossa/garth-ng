@@ -87,7 +87,7 @@ class FitnessActivity:
     def available_metrics(
         *,
         client: http.Client | None = None,
-    ) -> list[str]:
+    ) -> builtins.list[dict[str, Any]]:
         """Get list of available fitness metrics.
 
         Returns:
