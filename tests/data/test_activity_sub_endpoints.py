@@ -1,7 +1,5 @@
 from unittest.mock import MagicMock
 
-from tests.fixture_helpers import load_fixture
-
 from garth.data.activity import (
     Activity,
     ActivityDetails,
@@ -12,6 +10,7 @@ from garth.data.activity import (
     ExerciseSets,
     HrTimeInZone,
 )
+from tests.fixture_helpers import load_fixture
 
 
 def _mock_client(return_value):
