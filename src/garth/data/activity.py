@@ -11,6 +11,66 @@ from ..utils import camel_to_snake_dict, remove_dto_suffix_from_dict
 
 
 @dataclass
+class ActivityDetails:
+    activity_id: int | None = None
+    measurement_count: int | None = None
+    metrics_count: int | None = None
+    total_metrics_count: int | None = None
+    metric_descriptors: list[object] | None = None
+    activity_detail_metrics: list[object] | None = None
+    geo_polyline_dto: object | None = None
+    heart_rate_dt_os: list[object] | None = None
+    pending_data: object | None = None
+    details_available: bool | None = None
+
+
+@dataclass
+class ExerciseSets:
+    activity_id: int | None = None
+    exercise_sets: list[object] | None = None
+
+
+@dataclass
+class HrTimeInZone:
+    zone_number: int | None = None
+    seconds_in_zone: int | None = None
+    zone_low_boundary: int | None = None
+    zone_high_boundary: int | None = None
+
+
+@dataclass
+class GPolyline:
+    number_of_points: int | None = None
+    activity_id: int | None = None
+
+
+@dataclass
+class ActivityMapDetails:
+    activity_heat_map_dto: object | None = None
+    g_polyline: GPolyline | None = None
+
+
+@dataclass
+class ActivityUUID:
+    uuid: str | None = None
+
+
+@dataclass
+class ActivityRounds:
+    activity_id: int | None = None
+    activity_uuid: ActivityUUID | None = None
+    rounds: list[object] | None = None
+
+
+@dataclass
+class ActivityWorkout:
+    workout_id: int | None = None
+    owner_id: int | None = None
+    sport_type: object | None = None
+    workout_name: str | None = None
+
+
+@dataclass
 class ActivityType:
     type_id: int
     type_key: str
@@ -235,3 +295,114 @@ class Activity:
             payload["description"] = description
         path = f"/activity-service/activity/{activity_id}"
         client.connectapi(path, method="PUT", json=payload)
+
+    @classmethod
+    def details(
+        cls,
+        activity_id: int,
+        *,
+        max_chart_size: int = 1400,
+        client: http.Client | None = None,
+    ) -> ActivityDetails:
+        client = client or http.client
+        path = (
+            f"/activity-service/activity/{activity_id}"
+            f"/details?maxChartSize={max_chart_size}"
+        )
+        data = client.connectapi(path)
+        assert isinstance(data, dict), (
+            f"Expected dict from {path}, got {type(data).__name__}"
+        )
+        data = camel_to_snake_dict(data)
+        return ActivityDetails(**data)
+
+    @classmethod
+    def exercise_sets(
+        cls,
+        activity_id: int,
+        *,
+        client: http.Client | None = None,
+    ) -> ExerciseSets:
+        client = client or http.client
+        path = f"/activity-service/activity/{activity_id}/exerciseSets"
+        data = client.connectapi(path)
+        assert isinstance(data, dict), (
+            f"Expected dict from {path}, got {type(data).__name__}"
+        )
+        data = camel_to_snake_dict(data)
+        return ExerciseSets(**data)
+
+    @classmethod
+    def hr_time_in_zones(
+        cls,
+        activity_id: int,
+        *,
+        client: http.Client | None = None,
+    ) -> builtins.list[HrTimeInZone]:
+        client = client or http.client
+        path = f"/activity-service/activity/{activity_id}/hrTimeInZones"
+        data = client.connectapi(path)
+        assert isinstance(data, list), (
+            f"Expected list from {path}, got {type(data).__name__}"
+        )
+        return [HrTimeInZone(**camel_to_snake_dict(item)) for item in data]
+
+    @classmethod
+    def map_details(
+        cls,
+        activity_id: int,
+        *,
+        client: http.Client | None = None,
+    ) -> ActivityMapDetails:
+        client = client or http.client
+        path = f"/activity-service/activity/{activity_id}/details/mapdetails"
+        data = client.connectapi(path)
+        assert isinstance(data, dict), (
+            f"Expected dict from {path}, got {type(data).__name__}"
+        )
+        data = camel_to_snake_dict(data)
+        return ActivityMapDetails(**data)
+
+    @classmethod
+    def rounds(
+        cls,
+        activity_id: int,
+        *,
+        client: http.Client | None = None,
+    ) -> ActivityRounds:
+        client = client or http.client
+        path = f"/activity-service/activity/{activity_id}/rounds"
+        data = client.connectapi(path)
+        assert isinstance(data, dict), (
+            f"Expected dict from {path}, got {type(data).__name__}"
+        )
+        data = camel_to_snake_dict(data)
+        return ActivityRounds(**data)
+
+    @classmethod
+    def workouts(
+        cls,
+        activity_id: int,
+        *,
+        client: http.Client | None = None,
+    ) -> builtins.list[ActivityWorkout]:
+        client = client or http.client
+        path = f"/activity-service/activity/{activity_id}/workouts"
+        data = client.connectapi(path)
+        assert isinstance(data, list), (
+            f"Expected list from {path}, got {type(data).__name__}"
+        )
+        return [ActivityWorkout(**camel_to_snake_dict(item)) for item in data]
+
+    @staticmethod
+    def activity_types(
+        *,
+        client: http.Client | None = None,
+    ) -> builtins.list[ActivityType]:
+        client = client or http.client
+        path = "/activity-service/activity/activityTypes"
+        data = client.connectapi(path)
+        assert isinstance(data, list), (
+            f"Expected list from {path}, got {type(data).__name__}"
+        )
+        return [ActivityType(**camel_to_snake_dict(item)) for item in data]

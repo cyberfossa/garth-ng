@@ -62,3 +62,60 @@ class DailySummary(Data):
         )
         daily_summary = camel_to_snake_dict(daily_summary)
         return cls(**daily_summary)
+
+    @classmethod
+    def stats_by_type(
+        cls,
+        day: date | str | None = None,
+        stats_type: str = "STEPS",
+        *,
+        client: http.Client | None = None,
+    ) -> dict | None:
+        """Get daily stats by type.
+
+        Args:
+            day: Date to query (defaults to today)
+            stats_type: Type of stats e.g. "STEPS", "CALORIES"
+            client: Optional HTTP client
+
+        Returns:
+            Dictionary of stats or None if no data available
+        """
+        client = client or http.client
+        day = format_end_date(day)
+        path = f"/usersummary-service/stats/daily/{day}/{day}"
+        data = client.connectapi(path, params={"statsType": stats_type})
+
+        if not data:
+            return None
+
+        assert isinstance(data, dict), (
+            f"Expected dict from {path}, got {type(data).__name__}"
+        )
+        return camel_to_snake_dict(data)
+
+    @classmethod
+    def wellness_chart(
+        cls,
+        day: date | str | None = None,
+        *,
+        client: http.Client | None = None,
+    ) -> list | None:
+        """Get wellness summary chart data.
+
+        Args:
+            day: Date to query (defaults to today)
+            client: Optional HTTP client
+
+        Returns:
+            List of wellness chart data or None if no data available
+        """
+        client = client or http.client
+        day = format_end_date(day)
+        path = "/wellness-service/wellness/dailySummaryChart"
+        data = client.connectapi(path, params={"date": str(day)})
+
+        if data is None:
+            return None
+
+        return data
