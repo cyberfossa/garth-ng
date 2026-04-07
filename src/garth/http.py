@@ -327,6 +327,13 @@ class Client:
                     "Please re-authenticate with garth.login()"
                 )
             )
+        else:
+            raise GarthException(
+                msg=(
+                    f"No token files found in {dir_path}. "
+                    "Please login with garth.login() first."
+                )
+            )
 
     def loads(self, s: str):
         data = json.loads(base64.b64decode(s))

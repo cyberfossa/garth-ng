@@ -46,6 +46,16 @@ def test_legacy_oauth1_detection():
             new_client.load(tempdir)
 
 
+def test_load_missing_tokens_raises():
+    with tempfile.TemporaryDirectory() as tempdir:
+        new_client = Client()
+        with pytest.raises(
+            GarthException,
+            match="No token files found",
+        ):
+            new_client.load(tempdir)
+
+
 def test_dumps_and_loads(oauth2_token: OAuth2Token):
     client = Client()
     client.oauth2_token = oauth2_token
