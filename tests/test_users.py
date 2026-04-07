@@ -1,23 +1,30 @@
-import pytest
-
 from garth import UserProfile, UserSettings
 from garth.http import Client
 
 
-@pytest.mark.vcr
-def test_user_profile(authed_client: Client):
+def test_user_profile(authed_client: Client, load_cassette):
+    load_cassette(
+        authed_client,
+        "tests/cassettes/test_user_profile.yaml",
+    )
     profile = UserProfile.get(client=authed_client)
     assert profile.user_name
 
 
-@pytest.mark.vcr
-def test_user_settings(authed_client: Client):
+def test_user_settings(authed_client: Client, load_cassette):
+    load_cassette(
+        authed_client,
+        "tests/cassettes/test_user_settings.yaml",
+    )
     settings = UserSettings.get(client=authed_client)
     assert settings.user_data
 
 
-@pytest.mark.vcr
-def test_user_settings_sleep_windows(authed_client: Client):
+def test_user_settings_sleep_windows(authed_client: Client, load_cassette):
+    load_cassette(
+        authed_client,
+        "tests/cassettes/test_user_settings_sleep_windows.yaml",
+    )
     settings = UserSettings.get(client=authed_client)
     assert settings.user_data
     assert isinstance(settings.user_sleep_windows, list)

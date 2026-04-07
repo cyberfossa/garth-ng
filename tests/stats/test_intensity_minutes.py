@@ -1,13 +1,14 @@
 from datetime import date
 
-import pytest
-
 from garth import DailyIntensityMinutes, WeeklyIntensityMinutes
 from garth.http import Client
 
 
-@pytest.mark.vcr
-def test_daily_intensity_minutes(authed_client: Client):
+def test_daily_intensity_minutes(authed_client: Client, load_cassette):
+    load_cassette(
+        authed_client,
+        "tests/stats/cassettes/test_daily_intensity_minutes.yaml",
+    )
     end = date(2023, 7, 20)
     days = 20
     daily_im = DailyIntensityMinutes.list(end, days, client=authed_client)
@@ -15,8 +16,11 @@ def test_daily_intensity_minutes(authed_client: Client):
     assert len(daily_im) == days
 
 
-@pytest.mark.vcr
-def test_weekly_intensity_minutes(authed_client: Client):
+def test_weekly_intensity_minutes(authed_client: Client, load_cassette):
+    load_cassette(
+        authed_client,
+        "tests/stats/cassettes/test_weekly_intensity_minutes.yaml",
+    )
     end = date(2023, 7, 20)
     weeks = 12
     weekly_im = WeeklyIntensityMinutes.list(end, weeks, client=authed_client)

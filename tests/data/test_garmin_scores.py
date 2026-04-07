@@ -1,13 +1,14 @@
 from datetime import date
 
-import pytest
-
 from garth import GarminScoresData
 from garth.http import Client
 
 
-@pytest.mark.vcr
-def test_garmin_scores_data_get(authed_client: Client):
+def test_garmin_scores_data_get(authed_client: Client, load_cassette):
+    load_cassette(
+        authed_client,
+        "tests/data/cassettes/test_garmin_scores_data_get.yaml",
+    )
     garmin_scores_data = GarminScoresData.get(
         "2025-07-07", client=authed_client
     )
@@ -23,8 +24,11 @@ def test_garmin_scores_data_get(authed_client: Client):
     assert garmin_scores_data_none is None
 
 
-@pytest.mark.vcr
-def test_garmin_scores_data_list(authed_client: Client):
+def test_garmin_scores_data_list(authed_client: Client, load_cassette):
+    load_cassette(
+        authed_client,
+        "tests/data/cassettes/test_garmin_scores_data_list.yaml",
+    )
     days = 2
     end = date(2025, 7, 7)
     garmin_scores = GarminScoresData.list(

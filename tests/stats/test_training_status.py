@@ -1,7 +1,5 @@
 from datetime import date
 
-import pytest
-
 from garth import (
     DailyTrainingStatus,
     MonthlyTrainingStatus,
@@ -10,8 +8,11 @@ from garth import (
 from garth.http import Client
 
 
-@pytest.mark.vcr
-def test_daily_training_status(authed_client: Client):
+def test_daily_training_status(authed_client: Client, load_cassette):
+    load_cassette(
+        authed_client,
+        "tests/stats/cassettes/test_daily_training_status.yaml",
+    )
     end = date(2025, 6, 11)
     daily_training_status = DailyTrainingStatus.list(
         end, 1, client=authed_client
@@ -28,8 +29,11 @@ def test_daily_training_status(authed_client: Client):
         assert isinstance(daily_training_status[0].timestamp, datetime)
 
 
-@pytest.mark.vcr
-def test_weekly_training_status(authed_client: Client):
+def test_weekly_training_status(authed_client: Client, load_cassette):
+    load_cassette(
+        authed_client,
+        "tests/stats/cassettes/test_weekly_training_status.yaml",
+    )
     end = date(2025, 6, 11)
     weeks = 4  # Use a smaller, more reasonable period
     weekly_training_status = WeeklyTrainingStatus.list(
@@ -39,8 +43,11 @@ def test_weekly_training_status(authed_client: Client):
     assert all(ts.training_status is not None for ts in weekly_training_status)
 
 
-@pytest.mark.vcr
-def test_monthly_training_status(authed_client: Client):
+def test_monthly_training_status(authed_client: Client, load_cassette):
+    load_cassette(
+        authed_client,
+        "tests/stats/cassettes/test_monthly_training_status.yaml",
+    )
     end = date(2025, 6, 11)
     months = 6  # Use a smaller, more reasonable period
     monthly_training_status = MonthlyTrainingStatus.list(
@@ -52,8 +59,13 @@ def test_monthly_training_status(authed_client: Client):
     )
 
 
-@pytest.mark.vcr
-def test_weekly_training_status_pagination(authed_client: Client):
+def test_weekly_training_status_pagination(
+    authed_client: Client, load_cassette
+):
+    load_cassette(
+        authed_client,
+        "tests/stats/cassettes/test_weekly_training_status_pagination.yaml",
+    )
     end = date(2025, 6, 11)
     weeks = 60
     weekly_training_status = WeeklyTrainingStatus.list(
@@ -62,8 +74,11 @@ def test_weekly_training_status_pagination(authed_client: Client):
     assert len(weekly_training_status) > 0
 
 
-@pytest.mark.vcr
-def test_monthly_training_status_no_data(authed_client: Client):
+def test_monthly_training_status_no_data(authed_client: Client, load_cassette):
+    load_cassette(
+        authed_client,
+        "tests/stats/cassettes/test_monthly_training_status_no_data.yaml",
+    )
     end = date(2020, 1, 1)  # Date far in the past with no data
     monthly_training_status = MonthlyTrainingStatus.list(
         end, 1, client=authed_client
@@ -186,7 +201,7 @@ def test_training_status_list_error_cases():
 
 
 def test_daily_training_status_period_type():
-    """Test that daily training status uses correct period type (days)."""
+    """Test that daily training status uses correct period type."""
     from unittest.mock import Mock, patch
 
     from garth.stats.training_status import DailyTrainingStatus
@@ -205,13 +220,8 @@ def test_daily_training_status_period_type():
         }
     }
 
-    # Test that period type is correctly set to "days"
-    # Note: Daily training status only uses {end} in path, so it calls the same
-    # "latest" endpoint regardless of period, but the _period_type ensures
-    # date calculations use days instead of weeks
     assert DailyTrainingStatus._period_type == "days"
 
-    # Test single day request works
     with patch("garth.stats._base.format_end_date") as mock_format:
         mock_format.return_value = date(2025, 6, 11)
 
@@ -219,7 +229,6 @@ def test_daily_training_status_period_type():
             date(2025, 6, 11), 1, client=mock_client
         )
 
-        # Should call the latest endpoint with the end date
         expected_path = (
             "/mobile-gateway/usersummary/trainingstatus/latest/2025-06-11"
         )
@@ -251,7 +260,7 @@ def test_training_status_pagination_edge_cases():
     )
     assert result == []
 
-    # Test monthly pagination with data to trigger remaining_page call
+    # Test monthly pagination with data
     mock_response = {
         "monthlyTrainingStatus": {
             "payload": {
@@ -281,7 +290,6 @@ def test_training_status_pagination_edge_cases():
 
     mock_client.connectapi.side_effect = mock_connectapi_side_effect
 
-    # Test with period > page_size to trigger pagination logic
     result = MonthlyTrainingStatus.list(
         date(2025, 6, 11), 15, client=mock_client
     )

@@ -1,6 +1,5 @@
 from unittest.mock import MagicMock
 
-import pytest
 from requests import Session
 
 from garth.http import Client
@@ -69,9 +68,7 @@ def test_telemetry_configure_disabled(monkeypatch):
     assert t.enabled is False
 
 
-@pytest.mark.vcr
 def test_telemetry_enabled_request(authed_client: Client, monkeypatch):
-    """Test that telemetry works with real API requests (VCR recorded)."""
     captured_data = []
 
     def capture_callback(data):
@@ -83,6 +80,46 @@ def test_telemetry_enabled_request(authed_client: Client, monkeypatch):
     )
 
     assert authed_client.telemetry.enabled is True
+
+    import json
+    import sys
+
+    sys.path.insert(
+        0, str(__import__("pathlib").Path(__file__).resolve().parent)
+    )
+    from helpers import (
+        load_cassette as _load_cassette,
+        parse_response_body,
+    )
+
+    interactions = _load_cassette(
+        "tests/cassettes/test_telemetry_enabled_request.yaml"
+    )
+    profile_data = parse_response_body(interactions[0])
+
+    mock_resp = MagicMock()
+    mock_resp.status_code = 200
+    mock_resp.ok = True
+    mock_resp.json.return_value = profile_data
+    mock_resp.text = json.dumps(profile_data)
+    mock_resp.headers = {"Content-Type": "application/json"}
+    mock_resp.raise_for_status.return_value = None
+
+    mock_request = MagicMock()
+    mock_request.method = "GET"
+    mock_request.url = (
+        "https://connectapi.garmin.com/userprofile-service/socialProfile"
+    )
+    mock_request.headers = {}
+    mock_request.body = None
+    mock_resp.request = mock_request
+
+    def mock_sess_request(*args, **kwargs):
+        for hook in authed_client.sess.hooks.get("response", []):
+            hook(mock_resp)
+        return mock_resp
+
+    authed_client.sess.request = mock_sess_request
 
     profile = authed_client.connectapi("/userprofile-service/socialProfile")
     assert profile is not None
@@ -247,7 +284,12 @@ def test_response_hook_disabled():
 def test_response_hook_handles_exceptions():
     t = Telemetry()
     t.enabled = True
-    t.callback = lambda data: 1 / 0  # Will raise ZeroDivisionError
+
+    def _failing_callback(data) -> None:
+        _ = data
+        _ = 1 / 0  # Will raise ZeroDivisionError
+
+    t.callback = _failing_callback
 
     response = MagicMock()
     response.request = MagicMock()
@@ -341,6 +383,40 @@ def test_client_telemetry_callback(monkeypatch):
 
     assert client.telemetry.enabled is True
     assert client.telemetry.callback is not None
+
+
+def test_client_wires_telemetry_on_response(monkeypatch):
+    monkeypatch.delenv("GARTH_HOME", raising=False)
+    monkeypatch.delenv("GARTH_TOKEN", raising=False)
+    monkeypatch.delenv("GARTH_TELEMETRY_ENABLED", raising=False)
+
+    captured_data = []
+    client = Client()
+    client.configure(
+        telemetry_enabled=True,
+        telemetry_callback=lambda data: captured_data.append(data),
+    )
+
+    mock_response = MagicMock()
+    mock_response.status_code = 200
+    mock_response.headers = {}
+    mock_response.text = '{"ok": true}'
+    mock_response.raise_for_status.return_value = None
+
+    mock_request = MagicMock()
+    mock_request.method = "GET"
+    mock_request.url = "https://connectapi.garmin.com/test"
+    mock_request.headers = {}
+    mock_request.body = None
+    mock_response.request = mock_request
+
+    client.session.request = MagicMock(return_value=mock_response)
+
+    client.request("GET", "connectapi", "/test")
+
+    assert len(captured_data) == 1
+    assert captured_data[0]["status_code"] == 200
+    assert "session_id" in captured_data[0]
 
 
 def test_default_callback_calls_logfire_instance():
