@@ -100,7 +100,7 @@ class DailySummary(Data):
         day: date | str | None = None,
         *,
         client: http.Client | None = None,
-    ) -> list | None:
+    ) -> dict | list | None:
         """Get wellness summary chart data.
 
         Args:
