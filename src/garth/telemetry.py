@@ -4,9 +4,9 @@ import uuid
 from collections.abc import Callable
 from typing import Any
 
+from curl_cffi.requests import Response
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
-from requests import Response, Session
 
 from .version import __version__
 
@@ -50,6 +50,7 @@ JSON_SENSITIVE_FIELDS = [
     "consumer_key",
     "consumer_secret",
     "password",
+    "mfa_token",
     "oauth_token",
     "oauth_token_secret",
 ]
@@ -119,10 +120,6 @@ class Telemetry(BaseSettings):
     )
     _logfire_configured: bool = False
     _logfire_instance: Any = None
-    _attached_sessions: set = set()
-
-    def model_post_init(self, __context):
-        self._attached_sessions = set()
 
     def _default_callback(self, data: dict):
         """Default callback that sends to logfire."""
@@ -132,8 +129,8 @@ class Telemetry(BaseSettings):
             "http {method} {url} {status_code}", **data
         )
 
-    def _response_hook(self, response: Response, *args, **kwargs):
-        """Session hook that captures request/response data."""
+    def on_response(self, response: Response) -> None:
+        """Capture request/response telemetry data."""
         if not self.enabled:
             return
 
@@ -155,8 +152,8 @@ class Telemetry(BaseSettings):
                 ),
             }
 
-            if request.body:
-                body = request.body
+            body = getattr(request, "body", None)
+            if body:
                 if isinstance(body, bytes):
                     body = body.decode("utf-8", errors="replace")
                 data["request_body"] = sanitize(body)
@@ -220,16 +217,3 @@ class Telemetry(BaseSettings):
             console=False,
         )
         self._logfire_configured = True
-
-    def attach(self, session: Session):
-        """Attach telemetry hooks to a session.
-
-        This method is idempotent - calling it multiple times with the
-        same session will only attach the hook once.
-        """
-        session_id = id(session)
-        if session_id in self._attached_sessions:
-            return
-
-        session.hooks["response"].append(self._response_hook)
-        self._attached_sessions.add(session_id)

@@ -1,13 +1,16 @@
 from datetime import date
 
-import pytest
-
 from garth import MorningTrainingReadinessData
 from garth.http import Client
 
 
-@pytest.mark.vcr
-def test_morning_training_readiness_data_get(authed_client: Client):
+def test_morning_training_readiness_data_get(
+    authed_client: Client, load_cassette
+):
+    load_cassette(
+        authed_client,
+        "tests/data/cassettes/test_morning_training_readiness_data_get.yaml",
+    )
     morning_training_readiness_data = MorningTrainingReadinessData.get(
         "2025-07-07", client=authed_client
     )
@@ -23,8 +26,13 @@ def test_morning_training_readiness_data_get(authed_client: Client):
     assert morning_training_readiness_data_none is None
 
 
-@pytest.mark.vcr
-def test_morning_training_readiness_data_list(authed_client: Client):
+def test_morning_training_readiness_data_list(
+    authed_client: Client, load_cassette
+):
+    load_cassette(
+        authed_client,
+        "tests/data/cassettes/test_morning_training_readiness_data_list.yaml",
+    )
     days = 2
     end = date(2025, 7, 7)
     morning_training_readiness = MorningTrainingReadinessData.list(

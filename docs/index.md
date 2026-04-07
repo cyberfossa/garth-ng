@@ -4,26 +4,13 @@ Garmin SSO auth + Connect Python client
 
 ## About
 
-Garth was a Python library for Garmin Connect API access with OAuth
-authentication. It reached 350k+ downloads per month and was translated into
-multiple programming languages.
-
-Garmin recently changed their auth flow, breaking the mobile auth approach
-that Garth and other libraries depend on
-([#217](https://github.com/cyberfossa/garth-ng/issues/217)). This is the final
-release.
-
-## For existing users
-
-If you already have a saved session with a valid OAuth1 token, Garth may
-continue to work until that token expires (~1 year from when it was issued).
-New logins will not work.
+Garth is a Python library for Garmin Connect API access with OAuth
+authentication.
 
 ## Documentation
 
-The rest of this documentation is preserved for reference.
-
 - [Getting Started](getting-started.md) - Authentication and session management
 - [Configuration](configuration.md) - Domain and proxy settings
+- [Migrating to v1.0.0](migration-v1.md) - Breaking changes and upgrade guide
 - [API Reference](api/stats.md) - Available data types
 - [Examples](examples.md) - Google Colab notebooks

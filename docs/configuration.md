@@ -62,14 +62,3 @@ garth.configure(
     HTTP 429 (Too Many Requests) is not in the default retry list because
     retrying can make rate limiting worse. Add it explicitly if needed:
     `status_forcelist=(408, 429, 500, 502, 503, 504)`
-
-## Connection Pool Settings
-
-For high-throughput applications:
-
-```python
-garth.configure(
-    pool_connections=20,  # Number of connection pools (default: 10)
-    pool_maxsize=20,      # Max connections per pool (default: 10)
-)
-```

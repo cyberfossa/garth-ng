@@ -57,11 +57,11 @@ authentication. The codebase is organized into several key modules:
 
 ### Core Modules
 
-- **`http.py`** - Central HTTP client (`Client` class) handling OAuth1/OAuth2
+- **`http.py`** - Central HTTP client (`Client` class) handling OAuth2
   authentication, session management, and API requests
-- **`sso.py`** - Single Sign-On authentication logic for Garmin services
-- **`auth_tokens.py`** - OAuth1Token and OAuth2Token classes for token
-  management
+- **`sso/`** - SSO login strategy package with multiple strategy
+  implementations (WidgetStrategy, etc.)
+- **`auth_tokens.py`** - OAuth2Token class for token management
 
 ### Data Access Layer
 
@@ -91,10 +91,9 @@ authentication. The codebase is organized into several key modules:
 
 ### Authentication Flow
 
-1. OAuth1 token obtained through SSO (lasts ~1 year)
-2. OAuth2 token auto-refreshed as needed for API calls
-3. MFA support with custom handlers
-4. Session persistence via `save()` and `resume()` methods
+1. OAuth2 token obtained through SSO (auto-refreshed as needed)
+2. MFA support with custom handlers
+3. Session persistence via `save()` and `resume()` methods
 
 ### API Access
 

@@ -1,24 +1,23 @@
-import gzip
-import io
 import os
+import sys
 import time
+from datetime import datetime, timezone
+from pathlib import Path
 
 
-# Disable telemetry before importing garth — the module-level
-# Client() in http.py runs at import time and would configure logfire
 os.environ["GARTH_TELEMETRY_ENABLED"] = "false"
+sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 import pytest
-from requests import Session
+from curl_cffi.requests import Session
 
-from garth.auth_tokens import OAuth1Token, OAuth2Token
+from garth.auth_tokens import OAuth2Token
 from garth.http import Client
-from garth.telemetry import REDACTED, sanitize, sanitize_cookie
+from tests.helpers import setup_cassette
 
 
 @pytest.fixture(autouse=True)
 def _clean_env(monkeypatch):
-    """Prevent env leaks from affecting tests."""
     monkeypatch.setenv("GARTH_TELEMETRY_ENABLED", "false")
     monkeypatch.delenv("GARTH_HOME", raising=False)
     monkeypatch.delenv("GARTH_TOKEN", raising=False)
@@ -31,62 +30,34 @@ def session():
 
 @pytest.fixture
 def client(session, monkeypatch) -> Client:
-    # Clear env vars to prevent auto-resume in tests
     monkeypatch.delenv("GARTH_HOME", raising=False)
     monkeypatch.delenv("GARTH_TOKEN", raising=False)
     return Client(session=session)
 
 
 @pytest.fixture
-def oauth1_token_dict() -> dict:
-    return dict(
-        oauth_token="7fdff19aa9d64dda83e9d7858473aed1",
-        oauth_token_secret="49919d7c4c8241ac93fb4345886fbcea",
-        mfa_token="ab316f8640f3491f999f3298f3d6f1bb",
-        mfa_expiration_timestamp="2024-08-02 05:56:10.000",
-        domain="garmin.com",
-    )
-
-
-@pytest.fixture
-def oauth1_token(oauth1_token_dict) -> OAuth1Token:
-    return OAuth1Token(**oauth1_token_dict)
-
-
-@pytest.fixture
-def oauth2_token_dict() -> dict:
-    return dict(
-        scope="CONNECT_READ CONNECT_WRITE",
-        jti="foo",
-        token_type="Bearer",
+def oauth2_token() -> OAuth2Token:
+    return OAuth2Token(
         access_token="bar",
         refresh_token="baz",
         expires_in=3599,
+        expires_at=time.time() + 3599,
         refresh_token_expires_in=7199,
+        refresh_token_expires_at=time.time() + 7199,
+        scope="CONNECT_READ CONNECT_WRITE",
+        jti="foo",
+        mfa_token="mfa-token",
+        mfa_expiration_timestamp=datetime.fromtimestamp(
+            time.time() + 86400, tz=timezone.utc
+        ).strftime("%Y-%m-%dT%H:%M:%S.000Z"),
+        mfa_expiration_timestamp_millis=int((time.time() + 86400) * 1000),
     )
 
 
 @pytest.fixture
-def oauth2_token(oauth2_token_dict: dict) -> OAuth2Token:
-    token = OAuth2Token(
-        expires_at=int(time.time() + 3599),
-        refresh_token_expires_at=int(time.time() + 7199),
-        **oauth2_token_dict,
-    )
-    return token
-
-
-@pytest.fixture
-def authed_client(
-    oauth1_token: OAuth1Token, oauth2_token: OAuth2Token
-) -> Client:
+def authed_client(oauth2_token: OAuth2Token) -> Client:
     client = Client()
-    recording = os.environ.get("GARTH_RECORD_CASSETTES") == "true"
-    garth_home = os.environ.get("GARTH_RECORD_CASSETTES_HOME")
-    if recording and garth_home:  # pragma: no cover
-        client.load(garth_home)
-    else:
-        client.configure(oauth1_token=oauth1_token, oauth2_token=oauth2_token)
+    client.oauth2_token = oauth2_token
     client._garth_home = None
     assert client.oauth2_token and isinstance(client.oauth2_token, OAuth2Token)
     assert not client.oauth2_token.expired
@@ -94,64 +65,5 @@ def authed_client(
 
 
 @pytest.fixture
-def vcr(vcr):
-    if os.environ.get("GARTH_RECORD_CASSETTES") != "true":
-        vcr.record_mode = "none"
-    return vcr
-
-
-def sanitize_request(request):
-    if request.body:
-        try:
-            body = request.body.decode("utf8")
-        except UnicodeDecodeError:
-            ...
-        else:
-            request.body = sanitize(body).encode("utf8")
-
-    if "Cookie" in request.headers:
-        cookies = request.headers["Cookie"].split("; ")
-        sanitized_cookies = [sanitize_cookie(cookie) for cookie in cookies]
-        request.headers["Cookie"] = "; ".join(sanitized_cookies)
-    return request
-
-
-def sanitize_response(response):
-    try:
-        encoding = response["headers"].pop("Content-Encoding")
-    except KeyError:
-        ...
-    else:
-        if encoding[0] == "gzip":
-            body = response["body"]["string"]
-            buffer = io.BytesIO(body)
-            try:
-                body = gzip.GzipFile(fileobj=buffer).read()
-            except gzip.BadGzipFile:  # pragma: no cover
-                ...
-            else:
-                response["body"]["string"] = body
-
-    for key in ["set-cookie", "Set-Cookie"]:
-        if key in response["headers"]:
-            cookies = response["headers"][key]
-            sanitized_cookies = [sanitize_cookie(cookie) for cookie in cookies]
-            response["headers"][key] = sanitized_cookies
-
-    try:
-        body = response["body"]["string"].decode("utf8")
-    except UnicodeDecodeError:
-        pass
-    else:
-        response["body"]["string"] = sanitize(body).encode("utf8")
-
-    return response
-
-
-@pytest.fixture(scope="session")
-def vcr_config():
-    return {
-        "filter_headers": [("Authorization", f"Bearer {REDACTED}")],
-        "before_record_request": sanitize_request,
-        "before_record_response": sanitize_response,
-    }
+def load_cassette():
+    return setup_cassette

@@ -1,57 +1,120 @@
+import json
+import os
 import tempfile
 import time
 from typing import Any, cast
 
 import pytest
-from requests.adapters import HTTPAdapter
+from curl_cffi.requests.exceptions import RequestException
 
-from garth.auth_tokens import OAuth1Token, OAuth2Token
-from garth.exc import GarthException, GarthHTTPError
+import garth.http as http_mod
+from garth.auth_tokens import OAuth2Token
+from garth.exc import GarthException, GarthHTTPError, MFARequiredError
 from garth.http import Client
+from garth.sso.state import MFAState
+from garth.sso.strategy import LoginResult
+from tests.helpers import (
+    _is_data_interaction,
+    load_cassette as _load_cassette,
+    make_mock_response,
+    parse_response_body,
+)
 
 
-def test_dump_and_load(authed_client: Client):
+def test_dump_and_load(oauth2_token: OAuth2Token):
     with tempfile.TemporaryDirectory() as tempdir:
-        authed_client.dump(tempdir)
+        client = Client()
+        client.oauth2_token = oauth2_token
+        client.dump(tempdir)
 
         new_client = Client()
         new_client.load(tempdir)
 
-        assert new_client.oauth1_token == authed_client.oauth1_token
-        assert new_client.oauth2_token == authed_client.oauth2_token
+        assert new_client.oauth2_token == oauth2_token
 
 
-def test_dumps_and_loads(authed_client: Client):
-    s = authed_client.dumps()
+def test_dump_load_preserves_client_id():
+    with tempfile.TemporaryDirectory() as tempdir:
+        client = Client()
+        client.oauth2_token = OAuth2Token(
+            access_token="token-a",
+            refresh_token="token-b",
+            expires_in=3600,
+            client_id="GARMIN_CONNECT_MOBILE_ANDROID_DI_2025Q2",
+        )
+        client.dump(tempdir)
+
+        loaded_client = Client()
+        loaded_client.load(tempdir)
+
+        assert loaded_client.oauth2_token is not None
+        assert (
+            loaded_client.oauth2_token.client_id
+            == "GARMIN_CONNECT_MOBILE_ANDROID_DI_2025Q2"
+        )
+
+
+def test_legacy_oauth1_detection():
+    with tempfile.TemporaryDirectory() as tempdir:
+        with open(os.path.join(tempdir, "oauth1_token.json"), "w") as f:
+            json.dump({"oauth_token": "x", "oauth_token_secret": "y"}, f)
+
+        new_client = Client()
+        with pytest.raises(
+            GarthException,
+            match="Legacy OAuth1 tokens found",
+        ):
+            new_client.load(tempdir)
+
+
+def test_load_missing_tokens_raises():
+    with tempfile.TemporaryDirectory() as tempdir:
+        new_client = Client()
+        with pytest.raises(
+            GarthException,
+            match="No token files found",
+        ):
+            new_client.load(tempdir)
+
+
+def test_dumps_and_loads(oauth2_token: OAuth2Token):
+    client = Client()
+    client.oauth2_token = oauth2_token
+
+    s = client.dumps()
     new_client = Client()
     new_client.loads(s)
-    assert new_client.oauth1_token == authed_client.oauth1_token
-    assert new_client.oauth2_token == authed_client.oauth2_token
+
+    assert new_client.oauth2_token == oauth2_token
 
 
 def test_auto_resume_garth_home(
-    authed_client: Client, monkeypatch: pytest.MonkeyPatch
+    oauth2_token: OAuth2Token, monkeypatch: pytest.MonkeyPatch
 ):
     with tempfile.TemporaryDirectory() as tempdir:
-        authed_client.dump(tempdir)
+        client = Client()
+        client.oauth2_token = oauth2_token
+        client.dump(tempdir)
+
         monkeypatch.setenv("GARTH_HOME", tempdir)
         monkeypatch.delenv("GARTH_TOKEN", raising=False)
 
-        client = Client()
-        assert client.oauth1_token == authed_client.oauth1_token
-        assert client.oauth2_token == authed_client.oauth2_token
+        resumed_client = Client()
+        assert resumed_client.oauth2_token == oauth2_token
 
 
 def test_auto_resume_garth_token(
-    authed_client: Client, monkeypatch: pytest.MonkeyPatch
+    oauth2_token: OAuth2Token, monkeypatch: pytest.MonkeyPatch
 ):
-    token = authed_client.dumps()
+    client = Client()
+    client.oauth2_token = oauth2_token
+    token = client.dumps()
+
     monkeypatch.setenv("GARTH_TOKEN", token)
     monkeypatch.delenv("GARTH_HOME", raising=False)
 
-    client = Client()
-    assert client.oauth1_token == authed_client.oauth1_token
-    assert client.oauth2_token == authed_client.oauth2_token
+    resumed_client = Client()
+    assert resumed_client.oauth2_token == oauth2_token
 
 
 def test_auto_resume_garth_home_missing_tokens(
@@ -63,135 +126,84 @@ def test_auto_resume_garth_home_missing_tokens(
 
         client = Client()
         assert client._garth_home == tempdir
-        assert client.oauth1_token is None
         assert client.oauth2_token is None
 
 
 @pytest.fixture
 def garth_home_client(monkeypatch: pytest.MonkeyPatch):
-    """Client with GARTH_HOME set to a temp dir and mock tokens."""
-    import garth.sso
-
     with tempfile.TemporaryDirectory() as tempdir:
         monkeypatch.setenv("GARTH_HOME", tempdir)
         monkeypatch.delenv("GARTH_TOKEN", raising=False)
 
         client = Client()
-        mock_oauth1 = OAuth1Token(
-            oauth_token="test_token",
-            oauth_token_secret="test_secret",
-            domain="garmin.com",
-        )
-        mock_oauth2 = OAuth2Token(
-            scope="CONNECT_READ",
-            jti="test_jti",
-            token_type="Bearer",
-            access_token="test_access",
-            refresh_token="test_refresh",
+        mock_oauth2_token = OAuth2Token(
+            access_token="test_access_token_jwt",
+            refresh_token="test_refresh_token",
             expires_in=3600,
+            expires_at=time.time() + 3600,
             refresh_token_expires_in=7200,
-            expires_at=int(time.time() + 3600),
-            refresh_token_expires_at=int(time.time() + 7200),
+            refresh_token_expires_at=time.time() + 7200,
         )
-        yield client, tempdir, mock_oauth1, mock_oauth2, garth.sso
+        yield client, tempdir, mock_oauth2_token
 
 
-def _assert_tokens_saved(tempdir, mock_oauth1, mock_oauth2):
+def _assert_oauth2_token_saved(tempdir: str, oauth2_token: OAuth2Token):
     loaded = Client()
     loaded.load(tempdir)
-    assert loaded.oauth1_token == mock_oauth1
-    assert loaded.oauth2_token == mock_oauth2
+    assert loaded.oauth2_token == oauth2_token
 
 
 def test_auto_save_on_login(garth_home_client, monkeypatch):
-    client, tempdir, mock_oauth1, mock_oauth2, sso_mod = garth_home_client
+    client, tempdir, mock_oauth2_token = garth_home_client
     monkeypatch.setattr(
-        sso_mod, "login", lambda *a, **kw: (mock_oauth1, mock_oauth2)
+        http_mod.sso,
+        "login",
+        lambda *a, **kw: LoginResult(
+            "ST-ticket", "https://sso.garmin.com/sso/embed"
+        ),
+    )
+    monkeypatch.setattr(
+        http_mod.oauth,
+        "exchange_service_ticket",
+        lambda *a, **kw: mock_oauth2_token,
     )
 
     client.login("user@example.com", "password")
-    _assert_tokens_saved(tempdir, mock_oauth1, mock_oauth2)
+    _assert_oauth2_token_saved(tempdir, mock_oauth2_token)
 
 
 def test_auto_save_on_resume_login(garth_home_client, monkeypatch):
-    client, tempdir, mock_oauth1, mock_oauth2, sso_mod = garth_home_client
+    client, tempdir, mock_oauth2_token = garth_home_client
+    mfa_state = MFAState(
+        strategy_name="json-portal",
+        domain="garmin.com",
+        state={"mfa_url": "https://sso.garmin.com/portal/api/mfa/verifyCode"},
+    )
     monkeypatch.setattr(
-        sso_mod,
-        "resume_login",
-        lambda *a, **kw: (mock_oauth1, mock_oauth2),
+        http_mod.sso,
+        "handle_mfa",
+        lambda *a, **kw: LoginResult(
+            "ST-ticket", "https://sso.garmin.com/sso/embed"
+        ),
+    )
+    monkeypatch.setattr(
+        http_mod.oauth,
+        "exchange_service_ticket",
+        lambda *a, **kw: mock_oauth2_token,
     )
 
-    client.resume_login({"client": client, "login_params": {}}, "123")
-    _assert_tokens_saved(tempdir, mock_oauth1, mock_oauth2)
+    client.resume_login(mfa_state, "123456")
+    _assert_oauth2_token_saved(tempdir, mock_oauth2_token)
 
 
-def test_auto_resume_both_set_raises(monkeypatch: pytest.MonkeyPatch):
+def test_auto_resume_both_set_raises(
+    monkeypatch: pytest.MonkeyPatch,
+):
     monkeypatch.setenv("GARTH_HOME", "/some/path")
     monkeypatch.setenv("GARTH_TOKEN", "some_token")
 
     with pytest.raises(GarthException, match="cannot both be set"):
         Client()
-
-
-def test_auto_persist_on_refresh(
-    authed_client: Client, monkeypatch: pytest.MonkeyPatch
-):
-    with tempfile.TemporaryDirectory() as tempdir:
-        # Save initial tokens
-        authed_client.dump(tempdir)
-        monkeypatch.setenv("GARTH_HOME", tempdir)
-        monkeypatch.delenv("GARTH_TOKEN", raising=False)
-
-        # Create client that auto-resumes from GARTH_HOME
-        client = Client()
-        assert client._garth_home == tempdir
-
-        # Create a new token with different expiration
-        new_oauth2 = OAuth2Token(
-            scope="CONNECT_READ CONNECT_WRITE",
-            jti="new_jti",
-            token_type="Bearer",
-            access_token="new_access_token",
-            refresh_token="new_refresh_token",
-            expires_in=7200,
-            refresh_token_expires_in=14400,
-            expires_at=int(time.time() + 7200),
-            refresh_token_expires_at=int(time.time() + 14400),
-        )
-
-        # Mock sso.exchange to return the new token
-        import garth.sso
-
-        monkeypatch.setattr(
-            garth.sso, "exchange", lambda *args, **kwargs: new_oauth2
-        )
-
-        # Get oauth1 file modification time before refresh
-        import os
-
-        oauth1_path = os.path.join(tempdir, "oauth1_token.json")
-        oauth1_mtime_before = os.path.getmtime(oauth1_path)
-
-        # Small delay to ensure mtime would change if file is written
-        time.sleep(0.01)
-
-        # Trigger refresh
-        client.refresh_oauth2()
-
-        # Verify oauth1 file was NOT updated (oauth2_only=True)
-        oauth1_mtime_after = os.path.getmtime(oauth1_path)
-        assert oauth1_mtime_before == oauth1_mtime_after
-
-        # Verify the new token was persisted to GARTH_HOME
-        fresh_client = Client()
-        fresh_client.load(tempdir)
-        assert fresh_client.oauth2_token == new_oauth2
-
-
-def test_configure_oauth2_token(client: Client, oauth2_token: OAuth2Token):
-    assert client.oauth2_token is None
-    client.configure(oauth2_token=oauth2_token)
-    assert client.oauth2_token == oauth2_token
 
 
 def test_configure_domain(client: Client):
@@ -201,16 +213,16 @@ def test_configure_domain(client: Client):
 
 
 def test_configure_proxies(client: Client):
-    assert client.sess.proxies == {}
+    assert client.session.proxies == {}
     proxy = {"https": "http://localhost:8888"}
     client.configure(proxies=proxy)
-    assert client.sess.proxies["https"] == proxy["https"]
+    assert client.session.proxies.get("https") == proxy["https"]
 
 
 def test_configure_ssl_verify(client: Client):
-    assert client.sess.verify is True
+    assert client.session.verify is True
     client.configure(ssl_verify=False)
-    assert client.sess.verify is False
+    assert client.session.verify is False
 
 
 def test_configure_timeout(client: Client):
@@ -219,105 +231,266 @@ def test_configure_timeout(client: Client):
     assert client.timeout == 99
 
 
-def test_configure_retry(client: Client):
-    assert client.retries == 3
-    adapter = client.sess.adapters["https://"]
-    assert isinstance(adapter, HTTPAdapter)
-    assert adapter.max_retries.total == client.retries
-
-    client.configure(retries=99)
-    assert client.retries == 99
-    adapter = client.sess.adapters["https://"]
-    assert isinstance(adapter, HTTPAdapter)
-    assert adapter.max_retries.total == 99
-
-
-def test_configure_status_forcelist(client: Client):
-    assert client.status_forcelist == (408, 500, 502, 503, 504)
-    adapter = client.sess.adapters["https://"]
-    assert isinstance(adapter, HTTPAdapter)
-    assert adapter.max_retries.status_forcelist == client.status_forcelist
-
-    client.configure(status_forcelist=(200, 201, 202))
-    assert client.status_forcelist == (200, 201, 202)
-    adapter = client.sess.adapters["https://"]
-    assert isinstance(adapter, HTTPAdapter)
-    assert adapter.max_retries.status_forcelist == client.status_forcelist
-
-
-def test_configure_backoff_factor(client: Client):
-    assert client.backoff_factor == 0.5
-    adapter = client.sess.adapters["https://"]
-    assert isinstance(adapter, HTTPAdapter)
-    assert adapter.max_retries.backoff_factor == client.backoff_factor
-
-    client.configure(backoff_factor=0.99)
-    assert client.backoff_factor == 0.99
-    adapter = client.sess.adapters["https://"]
-    assert isinstance(adapter, HTTPAdapter)
-    assert adapter.max_retries.backoff_factor == client.backoff_factor
-
-
-def test_configure_pool_maxsize(client: Client):
-    assert client.pool_maxsize == 10
-    client.configure(pool_maxsize=99)
-    assert client.pool_maxsize == 99
-    adapter = client.sess.adapters["https://"]
-    assert isinstance(adapter, HTTPAdapter)
-    assert adapter.poolmanager.connection_pool_kw["maxsize"] == 99
-
-
-def test_configure_pool_connections(client: Client):
-    client.configure(pool_connections=99)
-    assert client.pool_connections == 99
-    adapter = client.sess.adapters["https://"]
-    assert isinstance(adapter, HTTPAdapter)
-    assert getattr(adapter, "_pool_connections", None) == 99, (
-        "Pool connections not properly configured"
+def test_client_request(authed_client: Client):
+    ok_resp = make_mock_response("<html>OK</html>", status_code=200)
+    not_found_resp = make_mock_response(
+        "<html>Not Found</html>", status_code=404
+    )
+    not_found_resp.ok = False
+    not_found_resp.raise_for_status.side_effect = RequestException(
+        "404 Client Error"
     )
 
+    call_count = {"n": 0}
 
-@pytest.mark.vcr
-def test_client_request(client: Client):
-    resp = client.request("GET", "connect", "/")
+    def mock_session_request(*args, **kwargs):
+        call_count["n"] += 1
+        if call_count["n"] == 1:
+            return ok_resp
+        return not_found_resp
+
+    authed_client.session.request = mock_session_request
+    resp = authed_client.request("GET", "connect", "/")
     assert resp.ok
 
     with pytest.raises(GarthHTTPError) as e:
-        client.request("GET", "connectapi", "/")
+        authed_client.request("GET", "connectapi", "/", api=True)
     assert "404" in str(e.value)
 
 
-@pytest.mark.vcr
-def test_login_success_mfa(monkeypatch, client: Client):
-    def mock_input(_):
-        return "327751"
+def test_retry_on_503(authed_client: Client, monkeypatch: pytest.MonkeyPatch):
+    authed_client.configure(retries=2, backoff_factor=0.5)
+    retry_resp = make_mock_response("service unavailable", status_code=503)
+    ok_resp = make_mock_response({"ok": True}, status_code=200)
 
-    monkeypatch.setattr("builtins.input", mock_input)
+    calls = {"n": 0}
 
-    assert client.oauth1_token is None
+    def mock_session_request(*args, **kwargs):
+        calls["n"] += 1
+        if calls["n"] < 3:
+            return retry_resp
+        return ok_resp
+
+    sleeps: list[float] = []
+
+    def mock_sleep(value: float):
+        sleeps.append(value)
+
+    monkeypatch.setattr(authed_client.session, "request", mock_session_request)
+    monkeypatch.setattr("garth.http._time.sleep", mock_sleep)
+
+    response = authed_client.request("GET", "connectapi", "/test", api=False)
+
+    assert response.status_code == 200
+    assert calls["n"] == 3
+    assert sleeps == [0.5, 1.0]
+
+
+def test_login_full_flow(monkeypatch: pytest.MonkeyPatch, client: Client):
+    oauth2_token = OAuth2Token(
+        access_token="test_access_token_jwt",
+        refresh_token="test_refresh_token",
+        expires_in=3600,
+        expires_at=time.time() + 3600,
+        refresh_token_expires_in=7200,
+        refresh_token_expires_at=time.time() + 7200,
+    )
+
+    monkeypatch.setattr(
+        http_mod.sso,
+        "login",
+        lambda *a, **kw: LoginResult(
+            "ST-ticket", "https://sso.garmin.com/sso/embed"
+        ),
+    )
+    monkeypatch.setattr(
+        http_mod.oauth,
+        "exchange_service_ticket",
+        lambda *a, **kw: oauth2_token,
+    )
+
+    result = client.login("user@example.com", "password")
+
+    assert result == oauth2_token
+    assert client.oauth2_token == oauth2_token
+
+
+def test_login_mfa_with_prompt(
+    monkeypatch: pytest.MonkeyPatch, client: Client
+):
+    mfa_state = MFAState(
+        strategy_name="json-portal",
+        domain="garmin.com",
+        state={"mfa_url": "https://sso.garmin.com/portal/api/mfa/verifyCode"},
+    )
+    oauth2_token = OAuth2Token(
+        access_token="test_access_token_jwt",
+        refresh_token="test_refresh_token",
+        expires_in=3600,
+        expires_at=time.time() + 3600,
+        refresh_token_expires_in=7200,
+        refresh_token_expires_at=time.time() + 7200,
+    )
+
+    def prompt_mfa() -> str:
+        return "123456"
+
+    monkeypatch.setattr(
+        http_mod.sso,
+        "login",
+        lambda *a, **kw: (_ for _ in ()).throw(
+            MFARequiredError(msg="MFA required", state=mfa_state)
+        ),
+    )
+    monkeypatch.setattr(
+        http_mod.sso,
+        "handle_mfa",
+        lambda *a, **kw: LoginResult(
+            "ST-ticket", "https://sso.garmin.com/sso/embed"
+        ),
+    )
+    monkeypatch.setattr(
+        http_mod.oauth,
+        "exchange_service_ticket",
+        lambda *a, **kw: oauth2_token,
+    )
+
+    result = client.login(
+        "user@example.com",
+        "password",
+        prompt_mfa=prompt_mfa,
+    )
+
+    assert result == oauth2_token
+    assert client.oauth2_token == oauth2_token
+
+
+def test_login_return_on_mfa(monkeypatch: pytest.MonkeyPatch, client: Client):
+    mfa_state = MFAState(
+        strategy_name="json-portal",
+        domain="garmin.com",
+        state={"mfa_url": "https://sso.garmin.com/portal/api/mfa/verifyCode"},
+    )
+
+    monkeypatch.setattr(
+        http_mod.sso,
+        "login",
+        lambda *a, **kw: (_ for _ in ()).throw(
+            MFARequiredError(msg="MFA required", state=mfa_state)
+        ),
+    )
+
+    result = client.login(
+        "user@example.com",
+        "password",
+        return_on_mfa=True,
+    )
+
+    assert result == mfa_state
     assert client.oauth2_token is None
-    client.login("user@example.com", "correct_password")
-    assert client.oauth1_token
-    assert client.oauth2_token
 
 
-@pytest.mark.vcr
+def test_refresh_token_uses_new_refresh_function(
+    monkeypatch: pytest.MonkeyPatch, client: Client
+):
+    current_token = OAuth2Token(
+        access_token="access-old",
+        refresh_token="refresh-old",
+        expires_in=3600,
+        expires_at=time.time() - 1,
+        refresh_token_expires_in=7200,
+        refresh_token_expires_at=time.time() + 7200,
+    )
+    refreshed_token = OAuth2Token(
+        access_token="access-new",
+        refresh_token="refresh-new",
+        expires_in=3600,
+        expires_at=time.time() + 3600,
+    )
+    client.oauth2_token = current_token
+
+    monkeypatch.setattr(
+        http_mod.oauth,
+        "refresh_oauth2_token",
+        lambda *a, **kw: refreshed_token,
+    )
+
+    client.refresh_token()
+
+    assert client.oauth2_token == refreshed_token
+
+
+def test_request_refreshes_expired_token(
+    monkeypatch: pytest.MonkeyPatch, client: Client
+):
+    expired_token = OAuth2Token(
+        access_token="access-old",
+        refresh_token="refresh-old",
+        expires_in=3600,
+        expires_at=time.time() - 1,
+        refresh_token_expires_in=7200,
+        refresh_token_expires_at=time.time() + 7200,
+    )
+    refreshed_token = OAuth2Token(
+        access_token="access-new",
+        refresh_token="refresh-new",
+        expires_in=3600,
+        expires_at=time.time() + 3600,
+    )
+    response = make_mock_response({"ok": True}, status_code=200)
+    captured_headers: dict[str, str] = {}
+
+    def mock_refresh_token():
+        client.oauth2_token = refreshed_token
+
+    def mock_session_request(method, url, headers=None, **kwargs):
+        if headers is not None:
+            captured_headers.update(headers)
+        return response
+
+    client.oauth2_token = expired_token
+    monkeypatch.setattr(client, "refresh_token", mock_refresh_token)
+    monkeypatch.setattr(client.session, "request", mock_session_request)
+
+    client.request("GET", "connectapi", "/test", api=True)
+
+    assert captured_headers["Authorization"] == "Bearer access-new"
+
+
+def test_request_requires_valid_oauth2_token(client: Client):
+    with pytest.raises(
+        GarthException,
+        match="No valid OAuth2 token. Please login.",
+    ):
+        client.request("GET", "connectapi", "/test", api=True)
+
+
 def test_username(authed_client: Client):
+    interactions = _load_cassette("tests/cassettes/test_username.yaml")
+    profile_data = parse_response_body(interactions[0])
+
     assert authed_client._user_profile is None
+    authed_client.connectapi = lambda *a, **kw: profile_data
     assert authed_client.username
     assert authed_client._user_profile
 
 
-@pytest.mark.vcr
 def test_profile_alias(authed_client: Client):
+    interactions = _load_cassette("tests/cassettes/test_profile_alias.yaml")
+    profile_data = parse_response_body(interactions[0])
+
     assert authed_client._user_profile is None
+    authed_client.connectapi = lambda *a, **kw: profile_data
     profile = authed_client.profile
     assert profile == authed_client.user_profile
     assert authed_client._user_profile is not None
 
 
-@pytest.mark.vcr
-def test_connectapi(authed_client: Client):
+def test_connectapi(authed_client: Client, load_cassette):
+    load_cassette(
+        authed_client,
+        "tests/cassettes/test_connectapi.yaml",
+    )
     stress = cast(
         list[dict[str, Any]],
         authed_client.connectapi(
@@ -337,21 +510,12 @@ def test_connectapi(authed_client: Client):
     ]
 
 
-@pytest.mark.vcr
-def test_refresh_oauth2_token(authed_client: Client):
-    assert authed_client.oauth2_token and isinstance(
-        authed_client.oauth2_token, OAuth2Token
-    )
-    authed_client.oauth2_token.expires_at = int(time.time())
-    assert authed_client.oauth2_token.expired
-    profile = authed_client.connectapi("/userprofile-service/socialProfile")
-    assert profile
-    assert isinstance(profile, dict)
-    assert profile["userName"]
-
-
-@pytest.mark.vcr
 def test_download(authed_client: Client):
+    interactions = _load_cassette("tests/cassettes/test_download.yaml")
+    raw_body = interactions[0]["response"]["body"]["string"]
+    mock_resp = make_mock_response(raw_body, status_code=200)
+    authed_client.session.request = lambda *a, **kw: mock_resp
+
     downloaded = authed_client.download(
         "/download-service/files/activity/11998957007"
     )
@@ -360,16 +524,49 @@ def test_download(authed_client: Client):
     assert downloaded[:4] == zip_magic_number
 
 
-@pytest.mark.vcr
-def test_upload(authed_client: Client):
+def test_upload(authed_client: Client, load_cassette):
+    load_cassette(
+        authed_client,
+        "tests/cassettes/test_upload.yaml",
+    )
     fpath = "tests/12129115726_ACTIVITY.fit"
     with open(fpath, "rb") as f:
         uploaded = authed_client.upload(f)
     assert uploaded
 
 
-@pytest.mark.vcr
 def test_delete(authed_client: Client):
+    interactions = _load_cassette("tests/cassettes/test_delete.yaml")
+
+    data_interactions = [i for i in interactions if _is_data_interaction(i)]
+    bodies = []
+    for inter in data_interactions:
+        code = inter["response"]["status"]["code"]
+        if code == 204:
+            bodies.append(None)
+        else:
+            bodies.append(parse_response_body(inter))
+    codes = [i["response"]["status"]["code"] for i in data_interactions]
+
+    call_idx = {"n": 0}
+
+    def mock_session_request(*args, **kwargs):
+        idx = call_idx["n"]
+        call_idx["n"] += 1
+        body = bodies[idx] if idx < len(bodies) else None
+        code = codes[idx] if idx < len(codes) else 200
+        resp = make_mock_response(body or "", code)
+        if code == 200 and body:
+            resp.json.return_value = body
+        if code >= 400:
+            resp.ok = False
+            resp.raise_for_status.side_effect = RequestException(
+                f"{code} Client Error"
+            )
+        return resp
+
+    authed_client.session.request = mock_session_request
+
     activity_id = "12135235656"
     path = f"/activity-service/activity/{activity_id}"
     assert authed_client.connectapi(path)
@@ -383,8 +580,31 @@ def test_delete(authed_client: Client):
     assert "404" in str(e.value)
 
 
-@pytest.mark.vcr
 def test_put(authed_client: Client):
+    interactions = _load_cassette("tests/cassettes/test_put.yaml")
+
+    data_interactions = [i for i in interactions if _is_data_interaction(i)]
+
+    responses = []
+    for inter in data_interactions:
+        code = inter["response"]["status"]["code"]
+        if code == 204:
+            responses.append(make_mock_response("", code))
+        else:
+            body = parse_response_body(inter)
+            resp = make_mock_response(body, code)
+            resp.json.return_value = body
+            responses.append(resp)
+
+    call_idx = {"n": 0}
+
+    def mock_session_request(*args, **kwargs):
+        idx = call_idx["n"]
+        call_idx["n"] += 1
+        return responses[idx]
+
+    authed_client.session.request = mock_session_request
+
     data = [
         {
             "changeState": "CHANGED",
@@ -410,28 +630,100 @@ def test_put(authed_client: Client):
     assert authed_client.connectapi(path)
 
 
-@pytest.mark.vcr
-def test_resume_login(client: Client):
-    result = client.login(
-        "example@example.com",
-        "correct_password",
-        return_on_mfa=True,
+def test_resume_login_flow(monkeypatch: pytest.MonkeyPatch, client: Client):
+    mfa_state = MFAState(
+        strategy_name="json-portal",
+        domain="garmin.com",
+        state={"mfa_url": "https://sso.garmin.com/portal/api/mfa/verifyCode"},
+    )
+    oauth2_token = OAuth2Token(
+        access_token="test_access_token_jwt",
+        refresh_token="test_refresh_token",
+        expires_in=3600,
+        expires_at=time.time() + 3600,
+        refresh_token_expires_in=7200,
+        refresh_token_expires_at=time.time() + 7200,
     )
 
-    assert isinstance(result, tuple)
-    result_type, client_state = result
+    monkeypatch.setattr(
+        http_mod.sso,
+        "handle_mfa",
+        lambda *a, **kw: LoginResult(
+            "ST-ticket", "https://sso.garmin.com/sso/embed"
+        ),
+    )
+    monkeypatch.setattr(
+        http_mod.oauth,
+        "exchange_service_ticket",
+        lambda *a, **kw: oauth2_token,
+    )
 
-    assert isinstance(client_state, dict)
-    assert result_type == "needs_mfa"
-    assert "login_params" in client_state
-    assert "client" in client_state
+    result = client.resume_login(mfa_state, "123456")
 
-    code = "123456"  # obtain from custom login
+    assert result == oauth2_token
+    assert client.oauth2_token == oauth2_token
 
-    # test resuming the login
-    oauth1, oauth2 = client.resume_login(client_state, code)
 
-    assert oauth1
-    assert isinstance(oauth1, OAuth1Token)
-    assert oauth2
-    assert isinstance(oauth2, OAuth2Token)
+def test_auto_save_on_refresh(garth_home_client, monkeypatch):
+    client, tempdir, mock_oauth2_token = garth_home_client
+    client.oauth2_token = OAuth2Token(
+        access_token="access-old",
+        refresh_token="refresh-old",
+        expires_in=3600,
+        expires_at=time.time() - 1,
+        refresh_token_expires_in=7200,
+        refresh_token_expires_at=time.time() + 7200,
+    )
+    monkeypatch.setattr(
+        http_mod.oauth,
+        "refresh_oauth2_token",
+        lambda *a, **kw: mock_oauth2_token,
+    )
+
+    client.refresh_token()
+    _assert_oauth2_token_saved(tempdir, mock_oauth2_token)
+
+
+def test_refresh_token_no_save_without_garth_home(
+    monkeypatch: pytest.MonkeyPatch, client: Client
+):
+    client.oauth2_token = OAuth2Token(
+        access_token="access-old",
+        refresh_token="refresh-old",
+        expires_in=3600,
+        expires_at=time.time() - 1,
+        refresh_token_expires_in=7200,
+        refresh_token_expires_at=time.time() + 7200,
+    )
+    refreshed_token = OAuth2Token(
+        access_token="access-new",
+        refresh_token="refresh-new",
+        expires_in=3600,
+        expires_at=time.time() + 3600,
+    )
+    monkeypatch.setattr(
+        http_mod.oauth,
+        "refresh_oauth2_token",
+        lambda *a, **kw: refreshed_token,
+    )
+    dump_called = []
+    monkeypatch.setattr(
+        client, "dump", lambda *a, **kw: dump_called.append(True)
+    )
+
+    client.refresh_token()
+
+    assert client.oauth2_token == refreshed_token
+    assert not dump_called  # dump must NOT be called
+
+
+def test_request_raises_when_no_response(
+    monkeypatch: pytest.MonkeyPatch, client: Client
+):
+    def mock_session_request(*a, **kw):
+        return None
+
+    monkeypatch.setattr(client.session, "request", mock_session_request)
+
+    with pytest.raises(GarthException, match="No response returned"):
+        client.request("GET", "connect", "/test")
