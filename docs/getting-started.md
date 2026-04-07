@@ -36,26 +36,28 @@ garth.save("~/.garth")
 
 ### Custom MFA handler
 
-By default, MFA will prompt for the code in the terminal. You can provide your
-own handler:
+By default, MFA is not handled automatically. Pass `prompt_mfa` to enable
+interactive MFA:
 
 ```python
 garth.login(email, password, prompt_mfa=lambda: input("Enter MFA code: "))
 ```
 
+The callable takes no arguments and must return the MFA code as a string.
+
 ### Advanced MFA handling
 
-For advanced use cases (like async handling), MFA can be handled separately:
+For advanced use cases (like web apps or async flows), MFA can be handled in
+two steps:
 
 ```python
-result1, result2 = garth.login(email, password, return_on_mfa=True)
-if result1 == "needs_mfa":
+from garth.sso.state import MFAState
+
+result = garth.client.login(email, password, return_on_mfa=True)
+if isinstance(result, MFAState):
     # MFA is required - get code from your custom flow
     mfa_code = "123456"
-    garth.resume_login(result2, mfa_code)
-else:
-    # No MFA required - result1 and result2 are the tokens
-    oauth1, oauth2 = result1, result2
+    garth.client.resume_login(result, mfa_code)
 ```
 
 ## Session Management
@@ -70,8 +72,8 @@ garth.resume("~/.garth")
 garth.client.username
 ```
 
-If the session file doesn't exist or the token has expired (~1 year lifetime),
-you'll need to log in again.
+If the session file doesn't exist or the refresh token has expired, you'll need
+to log in again. Access tokens auto-refresh during API calls.
 
 ### Auto-resume from environment variables
 
@@ -124,5 +126,5 @@ uvx garth --domain garmin.cn login
     persisted back to the directory, keeping your session current.
 
 !!! note "Token lifetime"
-    The OAuth1 token survives for approximately one year. The OAuth2 token
-    auto-refreshes as needed when making API calls.
+    The OAuth2 token auto-refreshes as needed when making API calls, as long
+    as the refresh token has not expired.
