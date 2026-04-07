@@ -1,31 +1,91 @@
 import time
 
-from garth.auth_tokens import OAuth1Token, OAuth2Token
+from garth.auth_tokens import OAuth2Token
 
 
-def test_is_expired(oauth2_token: OAuth2Token):
-    oauth2_token.expires_at = int(time.time() - 1)
-    assert oauth2_token.expired is True
+def test_oauth2_token_construction():
+    token = OAuth2Token(
+        access_token="test_jwt",
+        refresh_token="test_refresh",
+        expires_in=97200,
+    )
 
-
-def test_refresh_is_expired(oauth2_token: OAuth2Token):
-    oauth2_token.refresh_token_expires_at = int(time.time() - 1)
-    assert oauth2_token.refresh_expired is True
+    assert token.access_token == "test_jwt"
+    assert token.refresh_token == "test_refresh"
+    assert token.expires_in == 97200
+    assert token.token_type == "Bearer"
+    assert token.expires_at is None
+    assert token.scope is None
+    assert token.jti is None
+    assert token.mfa_token is None
 
 
 def test_str(oauth2_token: OAuth2Token):
     assert str(oauth2_token) == "Bearer bar"
 
 
-def test_oauth1_repr_hides_secret(oauth1_token: OAuth1Token):
-    r = repr(oauth1_token)
-    assert "oauth_token_secret='***'" in r
-    assert oauth1_token.oauth_token_secret not in r
-
-
-def test_oauth2_repr_hides_tokens(oauth2_token: OAuth2Token):
+def test_repr_hides_tokens(oauth2_token: OAuth2Token):
     r = repr(oauth2_token)
+
     assert "access_token='***'" in r
     assert "refresh_token='***'" in r
+    assert "mfa_token='***'" in r
     assert oauth2_token.access_token not in r
     assert oauth2_token.refresh_token not in r
+    if oauth2_token.mfa_token:
+        assert oauth2_token.mfa_token not in r
+
+
+def test_expired_when_expires_at_in_past():
+    token = OAuth2Token(
+        access_token="test_jwt",
+        refresh_token="test_refresh",
+        expires_in=3600,
+        expires_at=time.time() - 1,
+    )
+
+    assert token.expired is True
+
+
+def test_not_expired_when_expires_at_none():
+    token = OAuth2Token(
+        access_token="test_jwt",
+        refresh_token="test_refresh",
+        expires_in=3600,
+        expires_at=None,
+    )
+
+    assert token.expired is False
+
+
+def test_refresh_expired_when_in_past():
+    token = OAuth2Token(
+        access_token="test_jwt",
+        refresh_token="test_refresh",
+        expires_in=3600,
+        refresh_token_expires_at=time.time() - 1,
+    )
+
+    assert token.refresh_expired is True
+
+
+def test_refresh_not_expired_when_none():
+    token = OAuth2Token(
+        access_token="test_jwt",
+        refresh_token="test_refresh",
+        expires_in=3600,
+        refresh_token_expires_at=None,
+    )
+
+    assert token.refresh_expired is False
+
+
+def test_oauth2_token_preserves_jti_and_mfa_fields(
+    oauth2_token: OAuth2Token,
+):
+    assert oauth2_token.jti == "foo"
+    assert oauth2_token.mfa_token == "mfa-token"
+    assert oauth2_token.mfa_expiration_timestamp is not None
+    assert oauth2_token.mfa_expiration_timestamp.endswith("Z")
+    assert isinstance(oauth2_token.mfa_expiration_timestamp_millis, int)
+    assert oauth2_token.mfa_expiration_timestamp_millis > 0
