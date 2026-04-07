@@ -130,7 +130,12 @@ Available stat types: `DailySteps`, `WeeklySteps`, `DailyStress`,
 Available data types: `SleepData`, `HRVData`, `WeightData`, `DailyHeartRate`,
 `BodyBatteryData`, `DailyBodyBatteryStress`, `DailySleepData`, `DailySummary`,
 `Activity`, `FitnessActivity`, `GarminScoresData`, `TrainingReadinessData`,
-`MorningTrainingReadinessData`
+`MorningTrainingReadinessData`, `BloodPressure`, `NutritionLog`,
+`NutritionSettings`, `NutritionStatus`, `PersonalRecord`, `PersonalRecordType`,
+`WeightGoal`, `StepsGoal`
+
+`Activity` includes sub-endpoint methods: `details()`, `rounds()`, `exercise_sets()`,
+`hr_time_in_zones()`, `map_details()`, `workouts()`, `activity_types()`
 
 ### Upload an activity
 
