@@ -1,4 +1,5 @@
 import sys
+from unittest.mock import MagicMock
 
 import pytest
 
@@ -21,7 +22,6 @@ def test_no_args_prints_help(monkeypatch, capsys):
     assert "usage:" in out.lower()
 
 
-@pytest.mark.skip(reason="deferred to Task 12")
 def test_login_command(monkeypatch, capsys):
     monkeypatch.setattr(sys, "argv", ["garth", "login"])
     fake_token_string = "fake_token_json_string"
