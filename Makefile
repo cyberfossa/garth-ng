@@ -13,14 +13,12 @@ sources = src tests
 
 .PHONY: install  ## Install the package, dependencies, and pre-commit for local development
 install: .uv .pre-commit
-	uv pip install -e .
-	uv pip install --group dev --group linting --group testing
+	uv sync --group dev --group linting --group testing
 	pre-commit install --install-hooks
 
 .PHONY: sync  ## Sync dependencies and lockfiles
 sync: .uv clean
-	uv pip install -e . --force-reinstall
-	uv sync
+	uv sync --reinstall
 
 .PHONY: format  ## Auto-format python source files
 format: .uv
@@ -71,7 +69,7 @@ clean:
 	rm -rf docs/.changelog.md docs/.version.md docs/.tmp_schema_mappings.html
 	rm -rf fastapi/test.db
 	rm -rf coverage.xml
-	rm -rf __pypackages__ uv.lock
+	rm -rf __pypackages__
 
 .PHONY: help  ## Display this message
 help:
