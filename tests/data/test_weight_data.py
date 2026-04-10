@@ -1,5 +1,7 @@
 from datetime import date, datetime, timedelta, timezone
-from unittest.mock import Mock
+from unittest.mock import Mock, patch
+
+from freezegun import freeze_time
 
 from garth.data import WeightData
 from garth.http import Client
@@ -157,3 +159,121 @@ def test_weight_delete_without_day_uses_today(authed_client):
     assert call_args[0][0].startswith("/weight-service/weight/")
     assert call_args[0][0].endswith("/byversion/99999")
     assert call_args[1]["method"] == "DELETE"
+
+
+def test_build_body_composition_fit_roundtrip():
+    from garmin_fit_sdk import Decoder, Stream
+
+    ts = datetime(2026, 4, 10, 12, 0, tzinfo=timezone.utc)
+    fit_bytes = WeightData._build_body_composition_fit(
+        weight=75.5,
+        timestamp=ts,
+        percent_fat=22.5,
+        percent_hydration=58.0,
+        muscle_mass=58.5,
+        bone_mass=3.2,
+        bmi=23.3,
+        basal_met=1800,
+        active_met=2200,
+        metabolic_age=32,
+        physique_rating=5,
+        visceral_fat_mass=8.5,
+        visceral_fat_rating=12,
+    )
+
+    assert isinstance(fit_bytes, bytes)
+    stream = Stream.from_byte_array(bytearray(fit_bytes))
+    messages, errors = Decoder(stream).read()
+    assert not errors
+    assert messages["file_id_mesgs"][0]["type"] == "weight"
+
+    ws = messages["weight_scale_mesgs"][0]
+    assert ws["weight"] == 7550
+    assert abs(ws["percent_fat"] - 22.5) < 0.1
+    assert abs(ws["percent_hydration"] - 58.0) < 0.1
+    assert abs(ws["muscle_mass"] - 58.5) < 0.1
+    assert abs(ws["bone_mass"] - 3.2) < 0.1
+    assert abs(ws["bmi"] - 23.3) < 0.1
+    assert ws["metabolic_age"] == 32
+    assert ws["physique_rating"] == 5
+    assert ws["visceral_fat_rating"] == 12
+    assert abs(ws["basal_met"] - 1800) < 1
+    assert abs(ws["active_met"] - 2200) < 1
+    assert abs(ws["visceral_fat_mass"] - 8.5) < 0.1
+
+
+def test_build_body_composition_fit_weight_only():
+    from garmin_fit_sdk import Decoder, Stream
+
+    ts = datetime(2026, 4, 10, 12, 0, tzinfo=timezone.utc)
+    fit_bytes = WeightData._build_body_composition_fit(
+        weight=80.0, timestamp=ts
+    )
+
+    assert isinstance(fit_bytes, bytes)
+    assert len(fit_bytes) > 12
+
+    stream = Stream.from_byte_array(bytearray(fit_bytes))
+    messages, errors = Decoder(stream).read()
+    assert not errors
+    ws = messages["weight_scale_mesgs"][0]
+    assert "percent_fat" not in ws or ws["percent_fat"] is None
+    assert "muscle_mass" not in ws or ws["muscle_mass"] is None
+
+
+def test_create_body_composition_calls_upload(authed_client):
+    with patch.object(authed_client, "upload", Mock(return_value=None)):
+        WeightData.create_body_composition(
+            weight=75.5,
+            percent_fat=22.5,
+            client=authed_client,
+        )
+
+        assert authed_client.upload.called
+        fp = authed_client.upload.call_args[0][0]
+        assert fp.name == "body_composition.fit"
+        fp.seek(0)
+        data = fp.read()
+        assert data[8:12] == b".FIT"
+        assert len(data) > 12
+
+
+@freeze_time("2026-04-10 12:00:00")
+def test_create_body_composition_default_timestamp(authed_client):
+    from garmin_fit_sdk import Decoder, Stream
+
+    authed_client.upload = Mock(return_value=None)
+    WeightData.create_body_composition(weight=70.0, client=authed_client)
+
+    assert authed_client.upload.called
+    fp = authed_client.upload.call_args[0][0]
+    fp.seek(0)
+    stream = Stream.from_byte_array(bytearray(fp.read()))
+    messages, _ = Decoder(stream).read()
+    ws = messages["weight_scale_mesgs"][0]
+    assert ws.get("timestamp") is not None
+
+
+def test_create_body_composition_upload_full(authed_client):
+    from garmin_fit_sdk import Decoder, Stream
+
+    authed_client.upload = Mock(
+        return_value={"detailedImportResult": {"successes": []}}
+    )
+    WeightData.create_body_composition(
+        weight=72.5,
+        percent_fat=20.0,
+        muscle_mass=55.0,
+        timestamp=datetime(2026, 4, 10, 14, 30, tzinfo=timezone.utc),
+        client=authed_client,
+    )
+
+    assert authed_client.upload.called
+    fp = authed_client.upload.call_args[0][0]
+    fp.seek(0)
+    stream = Stream.from_byte_array(bytearray(fp.read()))
+    messages, errors = Decoder(stream).read()
+    assert not errors
+    ws = messages["weight_scale_mesgs"][0]
+    assert abs(ws["percent_fat"] - 20.0) < 0.1
+    assert abs(ws["muscle_mass"] - 55.0) < 0.1
