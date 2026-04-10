@@ -2,7 +2,7 @@ import builtins
 from datetime import date, datetime, timedelta, timezone
 from itertools import chain
 
-from pydantic import Field
+from pydantic import ConfigDict, Field
 from pydantic.dataclasses import dataclass
 from typing_extensions import Self
 
@@ -15,15 +15,15 @@ from ..utils import (
 from ._base import MAX_WORKERS, Data
 
 
-@dataclass
+@dataclass(config=ConfigDict(extra="ignore"))
 class WeightData(Data):
-    sample_pk: int
-    calendar_date: date
     weight: int
-    source_type: str
-    weight_delta: float | None
-    timestamp_gmt: int
     timestamp_local: int = Field(alias="date")
+    sample_pk: int | None = None
+    calendar_date: date | None = None
+    source_type: str | None = None
+    timestamp_gmt: int | None = None
+    weight_delta: float | None = None
     bmi: float | None = None
     body_fat: float | None = None
     body_water: float | None = None
@@ -35,13 +35,21 @@ class WeightData(Data):
 
     @property
     def datetime_utc(self) -> datetime:
-        return datetime.fromtimestamp(
-            self.timestamp_gmt / 1000, tz=timezone.utc
+        ts = (
+            self.timestamp_gmt
+            if self.timestamp_gmt is not None
+            else self.timestamp_local
         )
+        return datetime.fromtimestamp(ts / 1000, tz=timezone.utc)
 
     @property
     def datetime_local(self) -> datetime:
-        return get_localized_datetime(self.timestamp_gmt, self.timestamp_local)
+        ts = (
+            self.timestamp_gmt
+            if self.timestamp_gmt is not None
+            else self.timestamp_local
+        )
+        return get_localized_datetime(ts, self.timestamp_local)
 
     @classmethod
     def get(
@@ -92,3 +100,58 @@ class WeightData(Data):
             for weight_data in weight_metrics
         )
         return sorted(weight_data_list, key=lambda d: d.datetime_utc)
+
+    @classmethod
+    def create(
+        cls,
+        weight: float,
+        *,
+        timestamp: datetime | None = None,
+        client: http.Client | None = None,
+    ) -> None:
+        """Create a weight measurement.
+
+        Args:
+            weight: Weight in kilograms (e.g. 72.5).
+            timestamp: When the measurement was taken.
+                Defaults to current local time when None.
+            client: HTTP client instance.
+        """
+        client = client or http.client
+        if timestamp is None:
+            dt = datetime.now().astimezone()
+        else:
+            dt = timestamp if timestamp.tzinfo else timestamp.astimezone()
+        dt_gmt = dt.astimezone(timezone.utc)
+        path = "/weight-service/user-weight"
+        client.connectapi(
+            path,
+            method="POST",
+            json={
+                "dateTimestamp": dt.isoformat()[:19] + ".00",
+                "gmtTimestamp": dt_gmt.isoformat()[:19] + ".00",
+                "unitKey": "kg",
+                "value": weight,
+            },
+        )
+
+    @classmethod
+    def delete(
+        cls,
+        sample_pk: int,
+        day: date | str | None = None,
+        *,
+        client: http.Client | None = None,
+    ) -> None:
+        """Delete a weight measurement.
+
+        Args:
+            sample_pk: The unique identifier of the weight record.
+            day: Date of the measurement in YYYY-MM-DD format.
+                Defaults to today when None.
+            client: HTTP client instance.
+        """
+        client = client or http.client
+        day = format_end_date(day)
+        path = f"/weight-service/weight/{day}/byversion/{sample_pk}"
+        client.connectapi(path, method="DELETE")

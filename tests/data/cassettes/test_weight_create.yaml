@@ -1,0 +1,30 @@
+interactions:
+- request:
+    body: '{"dateTimestamp": "2026-04-10T14:30:00.00", "gmtTimestamp": "2026-04-10T12:30:00.00", "unitKey": "kg", "value": 72.5}'
+    headers:
+      Accept:
+      - '*/*'
+      Accept-Encoding:
+      - gzip, deflate
+      Authorization:
+      - Bearer SANITIZED
+      Connection:
+      - keep-alive
+      Content-Type:
+      - application/json
+      User-Agent:
+      - GCM-iOS-5.7.2.1
+    method: POST
+    uri: https://connectapi.garmin.com/weight-service/user-weight
+  response:
+    body:
+      string: ''
+    headers:
+      Content-Type:
+      - application/json
+      Date:
+      - Thu, 10 Apr 2026 12:30:01 GMT
+    status:
+      code: 204
+      message: No Content
+version: 1

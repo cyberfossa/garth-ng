@@ -1,4 +1,5 @@
 from datetime import date, datetime, timedelta, timezone
+from unittest.mock import Mock
 
 from garth.data import WeightData
 from garth.http import Client
@@ -108,3 +109,51 @@ def test_weight_data_list_empty(authed_client: Client, load_cassette):
     days = 15
     weight_data = WeightData.list(end, days, client=authed_client)
     assert len(weight_data) == 0
+
+
+def test_weight_create_without_date_param(authed_client):
+    authed_client.connectapi = Mock(return_value=None)
+
+    WeightData.create(weight=85.0, client=authed_client)
+
+    call_args = authed_client.connectapi.call_args
+    assert call_args[0][0] == "/weight-service/user-weight"
+    assert call_args[1]["method"] == "POST"
+    assert call_args[1]["json"]["value"] == 85.0
+    assert call_args[1]["json"]["unitKey"] == "kg"
+
+
+def test_weight_create_cassette(authed_client: Client, load_cassette):
+    load_cassette(
+        authed_client,
+        "tests/data/cassettes/test_weight_create.yaml",
+    )
+    WeightData.create(
+        weight=72.5,
+        timestamp=datetime(2026, 4, 10, 14, 30),
+        client=authed_client,
+    )
+
+
+def test_weight_delete_constructs_correct_request(authed_client):
+    authed_client.connectapi = Mock(return_value=None)
+
+    WeightData.delete(
+        sample_pk=12345, day=date(2026, 1, 15), client=authed_client
+    )
+
+    authed_client.connectapi.assert_called_once_with(
+        "/weight-service/weight/2026-01-15/byversion/12345",
+        method="DELETE",
+    )
+
+
+def test_weight_delete_without_day_uses_today(authed_client):
+    authed_client.connectapi = Mock(return_value=None)
+
+    WeightData.delete(sample_pk=99999, client=authed_client)
+
+    call_args = authed_client.connectapi.call_args
+    assert call_args[0][0].startswith("/weight-service/weight/")
+    assert call_args[0][0].endswith("/byversion/99999")
+    assert call_args[1]["method"] == "DELETE"
