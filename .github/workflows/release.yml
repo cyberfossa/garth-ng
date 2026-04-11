@@ -35,7 +35,10 @@ jobs:
     needs: release-please
     if: >
       (needs.release-please.outputs.release_created == 'true' &&
-       !contains(needs.release-please.outputs.tag_name, 'a')) ||
+       !contains(needs.release-please.outputs.tag_name, 'a') &&
+       !contains(needs.release-please.outputs.tag_name, 'b') &&
+       !contains(needs.release-please.outputs.tag_name, 'rc') &&
+       !contains(needs.release-please.outputs.tag_name, 'dev')) ||
       (github.event_name == 'workflow_dispatch' &&
        inputs.publish_prerelease == true)
     runs-on: ubuntu-latest
@@ -108,7 +111,7 @@ jobs:
         run: uv sync --no-dev --extra docs
 
       - name: Build docs
-        run: zensical build --clean
+        run: uv run zensical build --clean
 
       - name: Upload pages artifact
         uses: actions/upload-pages-artifact@v3
