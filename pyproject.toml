@@ -1,6 +1,6 @@
 [project]
 name = "garth-ng"
-dynamic = ["version"]
+version = "1.0.0-alpha.2"
 description = "Garmin SSO auth + Connect Python client (maintained fork of matin/garth)"
 authors = [
     { name = "CyberFossa", email = "cyberfossadev@proton.me" },
@@ -51,9 +51,6 @@ docs = [
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
-
-[tool.hatch.version]
-path = "src/garth/version.py"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/garth"]

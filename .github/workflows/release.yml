@@ -62,17 +62,12 @@ jobs:
       - name: Verify prerelease version
         if: github.event_name == 'workflow_dispatch' && inputs.publish_prerelease == true
         run: |
-          python - <<'PY'
-          import re, pathlib, sys
-          text = pathlib.Path("src/garth/version.py").read_text()
-          m = re.search(r'__version__\s*=\s*"([^"]+)"', text)
-          if not m:
-              sys.exit("Could not read __version__ from src/garth/version.py")
-          v = m.group(1)
-          if not re.search(r'(a|b|rc|dev)\d*', v):
-              sys.exit(f"Refusing manual prerelease publish for non-prerelease version: {v}")
-          print(f"Verified prerelease version: {v}")
-          PY
+          VERSION=$(uv version --short)
+          if ! echo "$VERSION" | grep -qE '(a|b|rc|dev)'; then
+            echo "Refusing manual prerelease publish for non-prerelease version: $VERSION"
+            exit 1
+          fi
+          echo "Verified prerelease version: $VERSION"
 
       - name: Build package
         run: uv build
