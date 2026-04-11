@@ -1,6 +1,6 @@
 site_name: Garth
 site_description: Garmin SSO auth + Connect Python client
-site_url: https://garth.readthedocs.io
+site_url: https://cyberfossa.github.io/garth-ng/
 repo_url: https://github.com/cyberfossa/garth-ng
 repo_name: cyberfossa/garth-ng
 
@@ -41,8 +41,9 @@ nav:
       - User: api/user.md
   - Examples: examples.md
   - MCP Server: mcp.md
-  - Contributing: contributing.md
   - Telemetry: telemetry.md
+  - Migrating to v1: migration-v1.md
+  - Contributing: contributing.md
 
 markdown_extensions:
   - pymdownx.highlight:
