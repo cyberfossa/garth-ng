@@ -22,6 +22,7 @@ repos:
   rev: v0.12.1
   hooks:
     - id: markdownlint-cli2
+      exclude: 'CHANGELOG\.md'
 
 - repo: local
   hooks:
