@@ -10,6 +10,7 @@ dependencies = [
     "pydantic>=2.0.0,<3.0.0",
     "pydantic-settings>=2.0.0,<3.0.0",
     "logfire>=2.11,<5.0",
+    "garmin-fit-sdk>=21.133",
 ]
 requires-python = ">=3.10"
 readme = "README.md"

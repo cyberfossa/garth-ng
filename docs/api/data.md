@@ -675,3 +675,65 @@ garth.WeightData.list("2025-06-01", 30)
 
 # datetime_utc and datetime_local are available as properties on each entry
 ```
+
+### Create weight measurement
+
+Creates a weight-only measurement via the Garmin Connect API. Weight in kilograms.
+Timestamp defaults to current local time.
+
+```python
+garth.WeightData.create(weight=72.5)
+# With specific timestamp
+garth.WeightData.create(
+    weight=72.5,
+    timestamp=datetime(2026, 4, 10, 14, 30),
+)
+```
+
+### Delete weight measurement
+
+Deletes a weight measurement by its `sample_pk` identifier.
+
+```python
+garth.WeightData.delete(sample_pk=1749996902851, day="2025-06-15")
+# Without day (defaults to today)
+garth.WeightData.delete(sample_pk=1749996902851)
+```
+
+### Upload body composition
+
+Builds a FIT file with body composition metrics and uploads it to Garmin Connect.
+Only `weight` is required; all other fields are optional.
+Uses the Garmin FIT SDK under the hood.
+
+```python
+garth.WeightData.create_body_composition(
+    weight=75.5,
+    percent_fat=22.5,
+    percent_hydration=58.0,
+    muscle_mass=58.5,
+    bone_mass=3.2,
+)
+```
+
+**Fields** (all optional except `weight`):
+
+| Field | Unit | Description |
+|-------|------|-------------|
+| `weight` | kg | Body weight (required) |
+| `percent_fat` | % | Body fat percentage |
+| `percent_hydration` | % | Body hydration percentage |
+| `muscle_mass` | kg | Muscle mass |
+| `bone_mass` | kg | Bone mass |
+| `bmi` | — | Body mass index |
+| `basal_met` | kcal/day | Basal metabolic rate |
+| `active_met` | kcal/day | Active metabolic rate |
+| `metabolic_age` | years | Metabolic age |
+| `physique_rating` | — | Physique rating (0-254) |
+| `visceral_fat_mass` | kg | Visceral fat mass |
+| `visceral_fat_rating` | — | Visceral fat rating (0-254) |
+| `timestamp` | datetime | Measurement time (defaults to now) |
+
+!!! tip
+    Body composition data uploaded via FIT files appears in Garmin Connect
+    alongside scale measurements.

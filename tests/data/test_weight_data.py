@@ -1,8 +1,22 @@
 from datetime import date, datetime, timedelta, timezone
-from unittest.mock import Mock
+from unittest.mock import Mock, patch
+
+import pytest
+from freezegun import freeze_time
 
 from garth.data import WeightData
+from garth.fit import build_body_composition
 from garth.http import Client
+
+
+def decode_fit_weight_scale(fit_bytes: bytes) -> dict:
+    """Decode FIT bytes and return the first weight_scale message."""
+    from garmin_fit_sdk import Decoder, Stream
+
+    stream = Stream.from_byte_array(bytearray(fit_bytes))
+    messages, errors = Decoder(stream).read()
+    assert not errors
+    return messages["weight_scale_mesgs"][0]
 
 
 def test_weight_data_timestamps_preserved(
@@ -157,3 +171,149 @@ def test_weight_delete_without_day_uses_today(authed_client):
     assert call_args[0][0].startswith("/weight-service/weight/")
     assert call_args[0][0].endswith("/byversion/99999")
     assert call_args[1]["method"] == "DELETE"
+
+
+def test_build_body_composition_fit_roundtrip():
+    from garmin_fit_sdk import Decoder, Stream
+
+    ts = datetime(2026, 4, 10, 12, 0, tzinfo=timezone.utc)
+    fit_bytes = build_body_composition(
+        weight=75.5,
+        timestamp=ts,
+        percent_fat=22.5,
+        percent_hydration=58.0,
+        muscle_mass=58.5,
+        bone_mass=3.2,
+        bmi=23.3,
+        basal_met=1800,
+        active_met=2200,
+        metabolic_age=32,
+        physique_rating=5,
+        visceral_fat_mass=8.5,
+        visceral_fat_rating=12,
+    )
+
+    assert isinstance(fit_bytes, bytes)
+    stream = Stream.from_byte_array(bytearray(fit_bytes))
+    messages, errors = Decoder(stream).read()
+    assert not errors
+    assert messages["file_id_mesgs"][0]["type"] == "weight"
+
+    ws = decode_fit_weight_scale(fit_bytes)
+    assert ws["weight"] == 7550
+    assert abs(ws["percent_fat"] - 22.5) < 0.1
+    assert abs(ws["percent_hydration"] - 58.0) < 0.1
+    assert abs(ws["muscle_mass"] - 58.5) < 0.1
+    assert abs(ws["bone_mass"] - 3.2) < 0.1
+    assert abs(ws["bmi"] - 23.3) < 0.1
+    assert ws["metabolic_age"] == 32
+    assert ws["physique_rating"] == 5
+    assert ws["visceral_fat_rating"] == 12
+    assert abs(ws["basal_met"] - 1800) < 1
+    assert abs(ws["active_met"] - 2200) < 1
+    assert abs(ws["visceral_fat_mass"] - 8.5) < 0.1
+
+
+def test_build_body_composition_fit_weight_only():
+    ts = datetime(2026, 4, 10, 12, 0, tzinfo=timezone.utc)
+    fit_bytes = build_body_composition(weight=80.0, timestamp=ts)
+
+    assert isinstance(fit_bytes, bytes)
+    assert len(fit_bytes) > 12
+
+    ws = decode_fit_weight_scale(fit_bytes)
+    assert "percent_fat" not in ws or ws["percent_fat"] is None
+    assert "muscle_mass" not in ws or ws["muscle_mass"] is None
+
+
+def test_create_body_composition_calls_upload(authed_client):
+    with patch.object(authed_client, "upload", Mock(return_value=None)):
+        WeightData.create_body_composition(
+            weight=75.5,
+            percent_fat=22.5,
+            client=authed_client,
+        )
+
+        assert authed_client.upload.called
+        fp = authed_client.upload.call_args[0][0]
+        assert fp.name == "body_composition.fit"
+        fp.seek(0)
+        data = fp.read()
+        assert data[8:12] == b".FIT"
+        assert len(data) > 12
+
+
+@freeze_time("2026-04-10 12:00:00")
+def test_create_body_composition_default_timestamp(authed_client):
+    authed_client.upload = Mock(return_value=None)
+    WeightData.create_body_composition(weight=70.0, client=authed_client)
+
+    assert authed_client.upload.called
+    fp = authed_client.upload.call_args[0][0]
+    fp.seek(0)
+    ws = decode_fit_weight_scale(fp.read())
+    assert ws.get("timestamp") is not None
+
+
+def test_create_body_composition_upload_full(authed_client):
+    authed_client.upload = Mock(
+        return_value={"detailedImportResult": {"successes": []}}
+    )
+    WeightData.create_body_composition(
+        weight=72.5,
+        percent_fat=20.0,
+        muscle_mass=55.0,
+        timestamp=datetime(2026, 4, 10, 14, 30, tzinfo=timezone.utc),
+        client=authed_client,
+    )
+
+    assert authed_client.upload.called
+    fp = authed_client.upload.call_args[0][0]
+    fp.seek(0)
+    ws = decode_fit_weight_scale(fp.read())
+    assert abs(ws["percent_fat"] - 20.0) < 0.1
+    assert abs(ws["muscle_mass"] - 55.0) < 0.1
+
+
+def test_build_body_composition_rejects_negative_weight():
+    ts = datetime(2026, 4, 10, 12, 0, tzinfo=timezone.utc)
+    with pytest.raises(ValueError, match="weight must be between"):
+        build_body_composition(weight=-1.0, timestamp=ts)
+
+
+def test_build_body_composition_rejects_zero_weight():
+    ts = datetime(2026, 4, 10, 12, 0, tzinfo=timezone.utc)
+    with pytest.raises(ValueError, match="weight must be between"):
+        build_body_composition(weight=0.0, timestamp=ts)
+
+
+def test_build_body_composition_rejects_excessive_weight():
+    ts = datetime(2026, 4, 10, 12, 0, tzinfo=timezone.utc)
+    with pytest.raises(ValueError, match="weight must be between"):
+        build_body_composition(weight=700.0, timestamp=ts)
+
+
+def test_build_body_composition_rejects_naive_timestamp():
+    ts = datetime(2026, 4, 10, 12, 0)  # no tzinfo
+    with pytest.raises(ValueError, match="timezone-aware"):
+        build_body_composition(weight=75.0, timestamp=ts)
+
+
+def test_build_body_composition_rejects_invalid_physique_rating():
+    ts = datetime(2026, 4, 10, 12, 0, tzinfo=timezone.utc)
+    with pytest.raises(ValueError, match="physique_rating"):
+        build_body_composition(weight=75.0, timestamp=ts, physique_rating=255)
+    with pytest.raises(ValueError, match="physique_rating"):
+        build_body_composition(weight=75.0, timestamp=ts, physique_rating=-1)
+
+
+def test_build_body_composition_rejects_invalid_visceral_fat_rating():
+    ts = datetime(2026, 4, 10, 12, 0, tzinfo=timezone.utc)
+    with pytest.raises(ValueError, match="visceral_fat_rating"):
+        build_body_composition(
+            weight=75.0, timestamp=ts, visceral_fat_rating=255
+        )
+    with pytest.raises(ValueError, match="visceral_fat_rating"):
+        build_body_composition(
+            weight=75.0, timestamp=ts, visceral_fat_rating=-1
+        )
