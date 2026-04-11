@@ -535,6 +535,40 @@ def test_upload(authed_client: Client, load_cassette):
     assert uploaded
 
 
+def test_upload_uses_multipart(authed_client: Client):
+    from io import BytesIO
+    from unittest.mock import MagicMock, patch
+
+    from curl_cffi import CurlMime
+
+    # Create fake FIT file with a .name attribute
+    fake_data = b"FIT\x00test"
+    fp = BytesIO(fake_data)
+    fp.name = "test.fit"
+
+    # Mock the low-level session.request to avoid real HTTP
+    mock_response = MagicMock()
+    mock_response.status_code = 200
+    mock_response.json.return_value = {
+        "detailedImportResult": {"successes": []}
+    }
+
+    with patch.object(
+        authed_client.session, "request", return_value=mock_response
+    ) as mock_req:
+        authed_client.upload(fp)
+
+    # Verify multipart= was passed (not files=)
+    call_kwargs = mock_req.call_args.kwargs
+    assert "files" not in call_kwargs, (
+        "files= was passed — should use multipart= instead"
+    )
+    assert "multipart" in call_kwargs, "multipart= was not passed"
+    assert isinstance(call_kwargs["multipart"], CurlMime), (
+        "multipart value must be a CurlMime instance"
+    )
+
+
 def test_delete(authed_client: Client):
     interactions = _load_cassette("tests/cassettes/test_delete.yaml")
 

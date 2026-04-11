@@ -6,6 +6,7 @@ from collections.abc import Callable
 from typing import IO, Any, cast, get_args
 from urllib.parse import urljoin
 
+from curl_cffi import CurlMime
 from curl_cffi.requests import HttpMethod, Response, Session
 from curl_cffi.requests.exceptions import RequestException
 from pydantic import model_validator
@@ -287,12 +288,21 @@ class Client:
         self, fp: IO[bytes], /, path: str = "/upload-service/upload"
     ) -> dict[str, Any]:
         fname = os.path.basename(fp.name)
-        files = {"file": (fname, fp)}
-        result = self.connectapi(
-            path,
-            method="POST",
-            files=files,
+        mp = CurlMime()
+        mp.addpart(
+            name="file",
+            filename=fname,
+            data=fp.read(),
+            content_type="application/octet-stream",
         )
+        try:
+            result = self.connectapi(
+                path,
+                method="POST",
+                multipart=mp,
+            )
+        finally:
+            mp.close()
         assert result is not None, "No result from upload"
         assert isinstance(result, dict)
         return result
