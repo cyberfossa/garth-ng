@@ -1,0 +1,123 @@
+name: Release
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+    inputs:
+      publish_prerelease:
+        description: "Publish pre-release to PyPI"
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+jobs:
+  release-please:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+    outputs:
+      release_created: ${{ steps.release.outputs.release_created }}
+      tag_name: ${{ steps.release.outputs.tag_name }}
+    steps:
+      - uses: googleapis/release-please-action@v4
+        id: release
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          config-file: release-please-config.json
+          manifest-file: .release-please-manifest.json
+
+  publish:
+    needs: release-please
+    if: >
+      (needs.release-please.outputs.release_created == 'true' &&
+       !contains(needs.release-please.outputs.tag_name, 'a') &&
+       !contains(needs.release-please.outputs.tag_name, 'b') &&
+       !contains(needs.release-please.outputs.tag_name, 'rc') &&
+       !contains(needs.release-please.outputs.tag_name, 'dev')) ||
+      (github.event_name == 'workflow_dispatch' &&
+       inputs.publish_prerelease == true)
+    runs-on: ubuntu-latest
+    environment:
+      name: pypi
+      url: https://pypi.org/p/garth-ng
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.13"
+
+      - uses: astral-sh/setup-uv@v8.0.0
+        with:
+          enable-cache: true
+
+      - name: Verify prerelease version
+        if: github.event_name == 'workflow_dispatch' && inputs.publish_prerelease == true
+        run: |
+          python - <<'PY'
+          import re, pathlib, sys
+          text = pathlib.Path("src/garth/version.py").read_text()
+          m = re.search(r'__version__\s*=\s*"([^"]+)"', text)
+          if not m:
+              sys.exit("Could not read __version__ from src/garth/version.py")
+          v = m.group(1)
+          if not re.search(r'(a|b|rc|dev)\d*', v):
+              sys.exit(f"Refusing manual prerelease publish for non-prerelease version: {v}")
+          print(f"Verified prerelease version: {v}")
+          PY
+
+      - name: Build package
+        run: uv build
+
+      - name: Publish to PyPI
+        uses: pypa/gh-action-pypi-publish@release/v1
+
+  docs:
+    needs: release-please
+    if: >
+      needs.release-please.outputs.release_created == 'true' ||
+      github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    concurrency:
+      group: pages
+      cancel-in-progress: false
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.13"
+
+      - uses: astral-sh/setup-uv@v8.0.0
+        with:
+          enable-cache: true
+
+      - name: Install docs dependencies
+        run: uv sync --no-dev --extra docs
+
+      - name: Build docs
+        run: uv run zensical build --clean
+
+      - name: Upload pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

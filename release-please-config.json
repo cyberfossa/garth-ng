@@ -1,0 +1,18 @@
+{
+  "$schema": "https://raw.githubusercontent.com/googleapis/release-please/main/schemas/config.json",
+  "release-type": "python",
+  "prerelease": true,
+  "versioning": "prerelease",
+  "changelog-sections": [
+    {"type": "feat", "section": "Features"},
+    {"type": "fix", "section": "Bug Fixes"},
+    {"type": "perf", "section": "Performance Improvements"},
+    {"type": "deps", "section": "Dependencies"},
+    {"type": "refactor", "section": "Refactoring"},
+    {"type": "docs", "section": "Documentation", "hidden": true},
+    {"type": "chore", "section": "Chores", "hidden": true}
+  ],
+  "packages": {
+    ".": {}
+  }
+}
