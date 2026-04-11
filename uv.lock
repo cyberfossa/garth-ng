@@ -724,6 +724,7 @@ wheels = [
 
 [[package]]
 name = "garth-ng"
+version = "1.0.0a2"
 source = { editable = "." }
 dependencies = [
     { name = "curl-cffi" },
