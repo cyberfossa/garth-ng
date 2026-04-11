@@ -4,6 +4,7 @@ from unittest.mock import Mock, patch
 from freezegun import freeze_time
 
 from garth.data import WeightData
+from garth.fit import build_body_composition
 from garth.http import Client
 
 
@@ -165,7 +166,7 @@ def test_build_body_composition_fit_roundtrip():
     from garmin_fit_sdk import Decoder, Stream
 
     ts = datetime(2026, 4, 10, 12, 0, tzinfo=timezone.utc)
-    fit_bytes = WeightData._build_body_composition_fit(
+    fit_bytes = build_body_composition(
         weight=75.5,
         timestamp=ts,
         percent_fat=22.5,
@@ -206,9 +207,7 @@ def test_build_body_composition_fit_weight_only():
     from garmin_fit_sdk import Decoder, Stream
 
     ts = datetime(2026, 4, 10, 12, 0, tzinfo=timezone.utc)
-    fit_bytes = WeightData._build_body_composition_fit(
-        weight=80.0, timestamp=ts
-    )
+    fit_bytes = build_body_composition(weight=80.0, timestamp=ts)
 
     assert isinstance(fit_bytes, bytes)
     assert len(fit_bytes) > 12
