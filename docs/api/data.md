@@ -716,9 +716,23 @@ garth.WeightData.create_body_composition(
 )
 ```
 
-Available fields: `weight`, `percent_fat`, `percent_hydration`, `muscle_mass`,
-`bone_mass`, `bmi`, `basal_met`, `active_met`, `metabolic_age`, `physique_rating`,
-`visceral_fat_mass`, `visceral_fat_rating`, `timestamp`.
+**Fields** (all optional except `weight`):
+
+| Field | Unit | Description |
+|-------|------|-------------|
+| `weight` | kg | Body weight (required) |
+| `percent_fat` | % | Body fat percentage |
+| `percent_hydration` | % | Body hydration percentage |
+| `muscle_mass` | kg | Muscle mass |
+| `bone_mass` | kg | Bone mass |
+| `bmi` | — | Body mass index |
+| `basal_met` | kcal/day | Basal metabolic rate |
+| `active_met` | kcal/day | Active metabolic rate |
+| `metabolic_age` | years | Metabolic age |
+| `physique_rating` | — | Physique rating (0-254) |
+| `visceral_fat_mass` | kg | Visceral fat mass |
+| `visceral_fat_rating` | — | Visceral fat rating (0-254) |
+| `timestamp` | datetime | Measurement time (defaults to now) |
 
 !!! tip
     Body composition data uploaded via FIT files appears in Garmin Connect
