@@ -289,13 +289,13 @@ class Client:
     ) -> dict[str, Any]:
         fname = os.path.basename(fp.name)
         mp = CurlMime()
-        mp.addpart(
-            name="file",
-            filename=fname,
-            data=fp.read(),
-            content_type="application/octet-stream",
-        )
         try:
+            mp.addpart(
+                name="file",
+                filename=fname,
+                data=fp.read(),
+                content_type="application/octet-stream",
+            )
             result = self.connectapi(
                 path,
                 method="POST",
