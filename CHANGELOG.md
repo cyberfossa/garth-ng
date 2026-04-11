@@ -1,5 +1,17 @@
 # Changelog
 
+## [1.1.0](https://github.com/cyberfossa/garth-ng/compare/v1.0.0...v1.1.0) (2026-04-11)
+
+
+### Features
+
+* **weight:** add body composition FIT upload ([#12](https://github.com/cyberfossa/garth-ng/issues/12)) ([44eb681](https://github.com/cyberfossa/garth-ng/commit/44eb681bc2a86afe25f6faa9bf4e6a57811f6fcd))
+
+
+### Bug Fixes
+
+* **lint:** exclude auto-generated CHANGELOG from markdownlint ([#16](https://github.com/cyberfossa/garth-ng/issues/16)) ([2c025c4](https://github.com/cyberfossa/garth-ng/commit/2c025c48ae9b59fa45dcd5f4f983427cf3e24e90))
+
 ## [1.0.0](https://github.com/cyberfossa/garth-ng/compare/v1.0.0-alpha.2...v1.0.0) (2026-04-11)
 
 
