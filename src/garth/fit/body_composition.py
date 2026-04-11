@@ -3,6 +3,7 @@ from datetime import datetime
 from garmin_fit_sdk import Encoder
 
 
+# FIT message type IDs (from FIT SDK profile)
 _FILE_ID = 0
 _DEVICE_INFO = 23
 _WEIGHT_SCALE = 30
@@ -41,13 +42,30 @@ def build_body_composition(
         basal_met: Basal metabolic rate in kcal/day.
         active_met: Active metabolic rate in kcal/day.
         metabolic_age: Metabolic age in years.
-        physique_rating: Physique rating (0-5 scale).
+        physique_rating: Physique rating (uint8, 0-254).
         visceral_fat_mass: Visceral fat mass in kilograms.
-        visceral_fat_rating: Visceral fat rating (0-59 scale).
+        visceral_fat_rating: Visceral fat rating (uint8, 0-254).
 
     Returns:
         FIT file bytes.
     """
+    if weight <= 0 or weight > 655.34:
+        raise ValueError(
+            f"weight must be between 0 (exclusive) and 655.34 kg, got {weight}"
+        )
+    if timestamp.tzinfo is None:
+        raise ValueError(
+            "timestamp must be timezone-aware (got naive datetime)"
+        )
+    if physique_rating is not None and not 0 <= physique_rating <= 254:
+        raise ValueError(
+            f"physique_rating must be between 0 and 254, got {physique_rating}"
+        )
+    if visceral_fat_rating is not None and not 0 <= visceral_fat_rating <= 254:
+        raise ValueError(
+            f"visceral_fat_rating must be between 0 and 254, "
+            f"got {visceral_fat_rating}"
+        )
     encoder = Encoder()
     encoder.on_mesg(
         _FILE_ID,
@@ -71,7 +89,9 @@ def build_body_composition(
     )
     weight_scale: dict[str, datetime | float | int] = {
         "timestamp": timestamp,
-        "weight": round(weight * 100),
+        "weight": round(
+            weight * 100
+        ),  # FIT stores weight in centikilograms (uint16)
     }
     optionals = {
         "percent_fat": percent_fat,

@@ -1,6 +1,7 @@
 from datetime import date, datetime, timedelta, timezone
 from unittest.mock import Mock, patch
 
+import pytest
 from freezegun import freeze_time
 
 from garth.data import WeightData
@@ -272,3 +273,47 @@ def test_create_body_composition_upload_full(authed_client):
     ws = decode_fit_weight_scale(fp.read())
     assert abs(ws["percent_fat"] - 20.0) < 0.1
     assert abs(ws["muscle_mass"] - 55.0) < 0.1
+
+
+def test_build_body_composition_rejects_negative_weight():
+    ts = datetime(2026, 4, 10, 12, 0, tzinfo=timezone.utc)
+    with pytest.raises(ValueError, match="weight must be between"):
+        build_body_composition(weight=-1.0, timestamp=ts)
+
+
+def test_build_body_composition_rejects_zero_weight():
+    ts = datetime(2026, 4, 10, 12, 0, tzinfo=timezone.utc)
+    with pytest.raises(ValueError, match="weight must be between"):
+        build_body_composition(weight=0.0, timestamp=ts)
+
+
+def test_build_body_composition_rejects_excessive_weight():
+    ts = datetime(2026, 4, 10, 12, 0, tzinfo=timezone.utc)
+    with pytest.raises(ValueError, match="weight must be between"):
+        build_body_composition(weight=700.0, timestamp=ts)
+
+
+def test_build_body_composition_rejects_naive_timestamp():
+    ts = datetime(2026, 4, 10, 12, 0)  # no tzinfo
+    with pytest.raises(ValueError, match="timezone-aware"):
+        build_body_composition(weight=75.0, timestamp=ts)
+
+
+def test_build_body_composition_rejects_invalid_physique_rating():
+    ts = datetime(2026, 4, 10, 12, 0, tzinfo=timezone.utc)
+    with pytest.raises(ValueError, match="physique_rating"):
+        build_body_composition(weight=75.0, timestamp=ts, physique_rating=255)
+    with pytest.raises(ValueError, match="physique_rating"):
+        build_body_composition(weight=75.0, timestamp=ts, physique_rating=-1)
+
+
+def test_build_body_composition_rejects_invalid_visceral_fat_rating():
+    ts = datetime(2026, 4, 10, 12, 0, tzinfo=timezone.utc)
+    with pytest.raises(ValueError, match="visceral_fat_rating"):
+        build_body_composition(
+            weight=75.0, timestamp=ts, visceral_fat_rating=255
+        )
+    with pytest.raises(ValueError, match="visceral_fat_rating"):
+        build_body_composition(
+            weight=75.0, timestamp=ts, visceral_fat_rating=-1
+        )
