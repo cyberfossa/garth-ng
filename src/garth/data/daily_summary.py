@@ -10,6 +10,8 @@ from ._base import Data
 
 @dataclass
 class DailySummary(Data):
+    """Daily wellness summary aggregating key health metrics."""
+
     user_profile_id: int
     calendar_date: date
     total_kilocalories: int | None = None
@@ -49,6 +51,15 @@ class DailySummary(Data):
         *,
         client: http.Client | None = None,
     ) -> Self | None:
+        """Get daily wellness summary for a given day.
+
+        Args:
+            day: Target date (defaults to today)
+            client: Optional HTTP client (uses default if not provided)
+
+        Returns:
+            DailySummary instance or None if no data
+        """
         client = client or http.client
         day = format_end_date(day)
         path = f"/usersummary-service/usersummary/daily/?calendarDate={day}"
