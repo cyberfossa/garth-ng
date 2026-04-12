@@ -1,10 +1,11 @@
 from __future__ import annotations
 
+from datetime import datetime
 from typing import Annotated
 
 import typer
 
-from garth.cli._helpers import _dump_item, _dump_list, _resume
+from garth.cli._helpers import _dump_item, _dump_json, _dump_list, _resume
 from garth.data import WeightData
 
 
@@ -45,3 +46,30 @@ def get(
     """Get weight data for a single day."""
     _resume(ctx)
     _dump_item(WeightData.get(day=day))
+
+
+@app.command(name="create")
+def create(
+    ctx: typer.Context,
+    weight: Annotated[
+        float, typer.Argument(help="Weight in kilograms (e.g. 72.5).")
+    ],
+    timestamp: Annotated[
+        str | None,
+        typer.Option(
+            "--timestamp",
+            help="ISO 8601 timestamp (e.g. 2024-01-15T08:30:00). Defaults to "
+            "now.",
+        ),
+    ] = None,
+) -> None:
+    """Create a weight entry."""
+    _resume(ctx)
+    ts = None
+    if timestamp:
+        try:
+            ts = datetime.fromisoformat(timestamp)
+        except ValueError:
+            raise typer.BadParameter(f"Invalid timestamp: {timestamp}")
+    WeightData.create(weight=weight, timestamp=ts)
+    _dump_json({"created": weight})

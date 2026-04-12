@@ -1,5 +1,6 @@
 import json
 from collections.abc import Callable
+from datetime import datetime
 from pathlib import Path
 from typing import cast
 from unittest.mock import patch
@@ -1008,3 +1009,48 @@ def test_data_weight_get_with_day():
         )
     assert result.exit_code == 0
     mock_get.assert_called_once_with(day="2024-01-15")
+
+
+def test_data_weight_create():
+    runner = _runner()
+    with (
+        patch("garth.resume"),
+        patch("garth.data.WeightData.create") as mock_create,
+    ):
+        result = runner.invoke(_app(), ["data", "weight", "create", "72.5"])
+    assert result.exit_code == 0
+    assert '"created": 72.5' in result.output
+    mock_create.assert_called_once_with(weight=72.5, timestamp=None)
+
+
+def test_data_weight_create_with_timestamp():
+    runner = _runner()
+    with (
+        patch("garth.resume"),
+        patch("garth.data.WeightData.create") as mock_create,
+    ):
+        result = runner.invoke(
+            _app(),
+            [
+                "data",
+                "weight",
+                "create",
+                "72.5",
+                "--timestamp",
+                "2024-01-15T08:30:00",
+            ],
+        )
+    assert result.exit_code == 0
+    mock_create.assert_called_once_with(
+        weight=72.5, timestamp=datetime.fromisoformat("2024-01-15T08:30:00")
+    )
+
+
+def test_data_weight_create_invalid_timestamp():
+    runner = _runner()
+    with patch("garth.resume"), patch("garth.data.WeightData.create"):
+        result = runner.invoke(
+            _app(),
+            ["data", "weight", "create", "72.5", "--timestamp", "not-a-date"],
+        )
+    assert result.exit_code != 0
