@@ -112,7 +112,7 @@ class SpO2SleepSummary:
 @dataclass
 class DailySleepData(Data):
     daily_sleep_dto: SleepDTO
-    rem_sleep_data: bool
+    rem_sleep_data: bool | None = None
     wellness_sp_o2_sleep_summary_dto: SpO2SleepSummary | None = None
     sleep_movement: builtins.list[Any] | None = None
     sleep_levels: builtins.list[Any] | None = None
