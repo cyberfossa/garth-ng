@@ -1080,3 +1080,105 @@ def test_data_weight_delete_with_day():
         )
     assert result.exit_code == 0
     mock_delete.assert_called_once_with(sample_pk=12345, day="2024-01-15")
+
+
+def test_data_weight_create_body_composition():
+    runner = _runner()
+    with (
+        patch("garth.resume"),
+        patch("garth.data.WeightData.create_body_composition") as mock_cbc,
+    ):
+        result = runner.invoke(
+            _app(), ["data", "weight", "create-body-composition", "72.5"]
+        )
+    assert result.exit_code == 0
+    assert '"uploaded": true' in result.output
+    mock_cbc.assert_called_once_with(
+        weight=72.5,
+        percent_fat=None,
+        percent_hydration=None,
+        muscle_mass=None,
+        bone_mass=None,
+        bmi=None,
+        basal_met=None,
+        active_met=None,
+        metabolic_age=None,
+        physique_rating=None,
+        visceral_fat_mass=None,
+        visceral_fat_rating=None,
+        timestamp=None,
+    )
+
+
+def test_data_weight_create_body_composition_with_params():
+    runner = _runner()
+    with (
+        patch("garth.resume"),
+        patch("garth.data.WeightData.create_body_composition") as mock_cbc,
+    ):
+        result = runner.invoke(
+            _app(),
+            [
+                "data",
+                "weight",
+                "create-body-composition",
+                "72.5",
+                "--percent-fat",
+                "15.5",
+                "--muscle-mass",
+                "32.0",
+                "--metabolic-age",
+                "28",
+            ],
+        )
+    assert result.exit_code == 0
+    mock_cbc.assert_called_once_with(
+        weight=72.5,
+        percent_fat=15.5,
+        percent_hydration=None,
+        muscle_mass=32.0,
+        bone_mass=None,
+        bmi=None,
+        basal_met=None,
+        active_met=None,
+        metabolic_age=28,
+        physique_rating=None,
+        visceral_fat_mass=None,
+        visceral_fat_rating=None,
+        timestamp=None,
+    )
+
+
+def test_data_weight_create_body_composition_with_timestamp():
+    runner = _runner()
+    with (
+        patch("garth.resume"),
+        patch("garth.data.WeightData.create_body_composition") as mock_cbc,
+    ):
+        result = runner.invoke(
+            _app(),
+            [
+                "data",
+                "weight",
+                "create-body-composition",
+                "72.5",
+                "--timestamp",
+                "2024-01-15T08:30:00",
+            ],
+        )
+    assert result.exit_code == 0
+    mock_cbc.assert_called_once_with(
+        weight=72.5,
+        percent_fat=None,
+        percent_hydration=None,
+        muscle_mass=None,
+        bone_mass=None,
+        bmi=None,
+        basal_met=None,
+        active_met=None,
+        metabolic_age=None,
+        physique_rating=None,
+        visceral_fat_mass=None,
+        visceral_fat_rating=None,
+        timestamp=datetime.fromisoformat("2024-01-15T08:30:00"),
+    )

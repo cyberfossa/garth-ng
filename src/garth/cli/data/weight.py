@@ -90,3 +90,99 @@ def delete(
     _resume(ctx)
     WeightData.delete(sample_pk=sample_pk, day=day)
     _dump_json({"deleted": sample_pk})
+
+
+@app.command(name="create-body-composition")
+def create_body_composition(
+    ctx: typer.Context,
+    weight: Annotated[
+        float, typer.Argument(help="Weight in kilograms (e.g. 72.5).")
+    ],
+    percent_fat: Annotated[
+        float | None,
+        typer.Option("--percent-fat", help="Body fat percentage."),
+    ] = None,
+    percent_hydration: Annotated[
+        float | None,
+        typer.Option("--percent-hydration", help="Body hydration percentage."),
+    ] = None,
+    muscle_mass: Annotated[
+        float | None,
+        typer.Option("--muscle-mass", help="Muscle mass in kilograms."),
+    ] = None,
+    bone_mass: Annotated[
+        float | None,
+        typer.Option("--bone-mass", help="Bone mass in kilograms."),
+    ] = None,
+    bmi: Annotated[
+        float | None, typer.Option("--bmi", help="Body mass index.")
+    ] = None,
+    basal_met: Annotated[
+        float | None,
+        typer.Option("--basal-met", help="Basal metabolic rate in kcal/day."),
+    ] = None,
+    active_met: Annotated[
+        float | None,
+        typer.Option(
+            "--active-met", help="Active metabolic rate in kcal/day."
+        ),
+    ] = None,
+    metabolic_age: Annotated[
+        int | None,
+        typer.Option("--metabolic-age", help="Metabolic age in years."),
+    ] = None,
+    physique_rating: Annotated[
+        int | None,
+        typer.Option(
+            "--physique-rating",
+            min=0,
+            max=254,
+            help="Physique rating (0-254).",
+        ),
+    ] = None,
+    visceral_fat_mass: Annotated[
+        float | None,
+        typer.Option(
+            "--visceral-fat-mass", help="Visceral fat mass in kilograms."
+        ),
+    ] = None,
+    visceral_fat_rating: Annotated[
+        int | None,
+        typer.Option(
+            "--visceral-fat-rating",
+            min=0,
+            max=254,
+            help="Visceral fat rating (0-254).",
+        ),
+    ] = None,
+    timestamp: Annotated[
+        str | None,
+        typer.Option(
+            "--timestamp", help="ISO 8601 timestamp. Defaults to now."
+        ),
+    ] = None,
+) -> None:
+    """Create a body composition entry."""
+    _resume(ctx)
+    ts = None
+    if timestamp:
+        try:
+            ts = datetime.fromisoformat(timestamp)
+        except ValueError:
+            raise typer.BadParameter(f"Invalid timestamp: {timestamp}")
+    WeightData.create_body_composition(
+        weight=weight,
+        percent_fat=percent_fat,
+        percent_hydration=percent_hydration,
+        muscle_mass=muscle_mass,
+        bone_mass=bone_mass,
+        bmi=bmi,
+        basal_met=basal_met,
+        active_met=active_met,
+        metabolic_age=metabolic_age,
+        physique_rating=physique_rating,
+        visceral_fat_mass=visceral_fat_mass,
+        visceral_fat_rating=visceral_fat_rating,
+        timestamp=ts,
+    )
+    _dump_json({"uploaded": True})
