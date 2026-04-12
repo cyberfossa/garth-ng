@@ -21,7 +21,7 @@ class UserProfile:
     facebook_url: str | None
     twitter_url: str | None
     personal_website: str | None
-    motivation: str | None
+    motivation: int | str | None
     bio: str | None
     primary_activity: str | None
     favorite_activity_types: list[str]
@@ -56,7 +56,7 @@ class UserProfile:
     show_badges: bool
     other_activity: str | None
     other_primary_activity: str | None
-    other_motivation: str | None
+    other_motivation: int | str | None
     user_roles: list[str]
     name_approved: bool
     user_profile_full_name: str
