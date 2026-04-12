@@ -1,4 +1,4 @@
-from datetime import date
+from datetime import date, datetime, timezone
 from unittest.mock import Mock
 
 from garth.data import WeightData
@@ -63,16 +63,15 @@ def test_weight_latest_returns_none_for_empty_dict(authed_client):
 def test_weight_create_constructs_correct_request(authed_client):
     authed_client.connectapi = Mock(return_value=None)
 
-    WeightData.create(
-        weight=85000, date=date(2026, 1, 1), client=authed_client
-    )
+    ts = datetime(2026, 1, 1, tzinfo=timezone.utc)
+    WeightData.create(weight=85000, timestamp=ts, client=authed_client)
 
     authed_client.connectapi.assert_called_once_with(
         "/weight-service/user-weight",
         method="POST",
         json={
-            "dateTimestamp": "2026-01-01",
-            "gmtTimestamp": "2026-01-01",
+            "dateTimestamp": "2026-01-01T00:00:00.00",
+            "gmtTimestamp": "2026-01-01T00:00:00.00",
             "unitKey": "kg",
             "value": 85000,
         },
