@@ -137,6 +137,36 @@ Available data types: `SleepData`, `HRVData`, `WeightData`, `DailyHeartRate`,
 `Activity` includes sub-endpoint methods: `details()`, `rounds()`, `exercise_sets()`,
 `hr_time_in_zones()`, `map_details()`, `workouts()`, `activity_types()`
 
+```python
+# Blood pressure
+garth.BloodPressure.get("2024-01-15")
+garth.BloodPressure.create(systolic=120, diastolic=80, pulse=72)
+
+# Personal records
+garth.PersonalRecord.list()
+garth.PersonalRecord.for_activity(12345678901)
+
+# Nutrition
+garth.NutritionLog.get("2024-01-15")
+garth.NutritionSettings.get()
+garth.NutritionStatus.get()
+
+# Goals
+garth.WeightGoal.get()
+garth.StepsGoal.get()
+
+# Weight management
+garth.WeightData.latest()
+garth.WeightData.create(weight=75.5)
+
+# Sleep logging
+from datetime import datetime
+garth.SleepData.create(
+    sleep_start=datetime(2024, 1, 15, 23, 0),
+    sleep_end=datetime(2024, 1, 16, 7, 0),
+)
+```
+
 ### Upload an activity
 
 ```python
