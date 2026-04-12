@@ -44,17 +44,12 @@ The simplest approach: save the token directory after login, then resume it in
 any subsequent script.
 
 ```python
-import garth
-from getpass import getpass
-
 garth.login(input("Email: "), getpass("Password: "))
 garth.save("~/.garth")
 ```
 
 ```python
-# In another script or process:
-import garth
-
+# In another script or process
 garth.resume("~/.garth")
 profile = garth.client.username
 ```
@@ -77,8 +72,6 @@ export GARTH_HOME=~/.garth
 ```
 
 ```python
-import garth
-
 # Session loaded from disk automatically on import
 data = garth.connectapi("/wellness-service/wellness/dailySummary")
 ```
@@ -95,8 +88,6 @@ export GARTH_TOKEN="eyJvYXV0..."
 ```
 
 ```python
-import garth
-
 # Session decoded from GARTH_TOKEN automatically
 data = garth.connectapi("/wellness-service/wellness/dailySummary")
 ```

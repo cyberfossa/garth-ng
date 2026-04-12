@@ -22,10 +22,10 @@ class GarthException(Exception):
 
 @dataclass
 class GarthHTTPError(GarthException):
-    """Raised when an HTTP request returns a non-success status.
+    """Raised when an HTTP request returns a non-success status (4xx/5xx).
 
-    The underlying HTTP error (connection timeout, DNS failure, etc.) is
-    captured in the `error` field for debugging and retry logic.
+    Wraps the `RequestException` from `raise_for_status()` in the `error`
+    field. For transport-layer failures (DNS, timeouts), see `NetworkError`.
     """
 
     error: RequestException
