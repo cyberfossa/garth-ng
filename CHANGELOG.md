@@ -1,5 +1,20 @@
 # Changelog
 
+## [1.1.0](https://github.com/cyberfossa/garth-ng/compare/v1.0.0...v1.1.0) (2026-04-12)
+
+
+### Features
+
+* **cli:** replace Click with Typer-based CLI ([#19](https://github.com/cyberfossa/garth-ng/issues/19)) ([9200f1f](https://github.com/cyberfossa/garth-ng/commit/9200f1ff19a747581bdfe6c4f590f3a06acca3ba))
+* **weight:** add body composition FIT upload ([#12](https://github.com/cyberfossa/garth-ng/issues/12)) ([44eb681](https://github.com/cyberfossa/garth-ng/commit/44eb681bc2a86afe25f6faa9bf4e6a57811f6fcd))
+
+
+### Bug Fixes
+
+* **data:** make rem_sleep_data optional in DailySleepData ([#21](https://github.com/cyberfossa/garth-ng/issues/21)) ([2611b6a](https://github.com/cyberfossa/garth-ng/commit/2611b6a0e1b9a2da2702da56dd7eee288b1e31a8))
+* **lint:** exclude auto-generated CHANGELOG from markdownlint ([#16](https://github.com/cyberfossa/garth-ng/issues/16)) ([2c025c4](https://github.com/cyberfossa/garth-ng/commit/2c025c48ae9b59fa45dcd5f4f983427cf3e24e90))
+* **users:** widen Pydantic types for UserProfile and UserSettings ([#22](https://github.com/cyberfossa/garth-ng/issues/22)) ([fedd1e5](https://github.com/cyberfossa/garth-ng/commit/fedd1e5a7a7833384c7518fb6178a812defa6672))
+
 ## [1.0.0](https://github.com/cyberfossa/garth-ng/compare/v1.0.0-alpha.2...v1.0.0) (2026-04-11)
 
 
