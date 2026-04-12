@@ -4,7 +4,7 @@ from typing import Annotated
 
 import typer
 
-from garth.cli._helpers import _dump_list, _resume
+from garth.cli._helpers import _dump_item, _dump_list, _resume
 from garth.data import WeightData
 
 
@@ -32,3 +32,16 @@ def list_(
     """List weight data."""
     _resume(ctx)
     _dump_list(WeightData.list(end=end, days=days))
+
+
+@app.command(name="get")
+def get(
+    ctx: typer.Context,
+    day: Annotated[
+        str | None,
+        typer.Option("--day", help="Date (YYYY-MM-DD). Defaults to today."),
+    ] = None,
+) -> None:
+    """Get weight data for a single day."""
+    _resume(ctx)
+    _dump_item(WeightData.get(day=day))

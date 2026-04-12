@@ -983,3 +983,28 @@ def test_data_activity_update_requires_field_message():
     result = runner.invoke(_app(), ["data", "activity", "update", "123"])
     assert result.exit_code == 1
     assert "Provide" in result.output
+
+
+def test_data_weight_get():
+    runner = _runner()
+    with (
+        patch("garth.resume"),
+        patch("garth.data.WeightData.get", return_value=None) as mock_get,
+    ):
+        result = runner.invoke(_app(), ["data", "weight", "get"])
+    assert result.exit_code == 0
+    assert "null" in result.output
+    mock_get.assert_called_once_with(day=None)
+
+
+def test_data_weight_get_with_day():
+    runner = _runner()
+    with (
+        patch("garth.resume"),
+        patch("garth.data.WeightData.get", return_value=None) as mock_get,
+    ):
+        result = runner.invoke(
+            _app(), ["data", "weight", "get", "--day", "2024-01-15"]
+        )
+    assert result.exit_code == 0
+    mock_get.assert_called_once_with(day="2024-01-15")
