@@ -62,7 +62,7 @@ class UserData:
     firstbeat_max_stress_score: float | None
     firstbeat_cycling_lt_timestamp: int | None
     firstbeat_running_lt_timestamp: int | None
-    threshold_heart_rate_auto_detected: bool
+    threshold_heart_rate_auto_detected: bool | None
     ftp_auto_detected: bool | None
     training_status_paused_date: str | None
     weather_location: WeatherLocation | None
