@@ -124,6 +124,72 @@ The format is `base64(JSON([{access_token, refresh_token, expires_at,
 refresh_token_expires_at, ...}]))` — a base64-encoded JSON array containing
 one object with all token fields.
 
+## Multi-User Access
+
+For applications that manage tokens for multiple Garmin users (e.g. a backend
+with Firebase, Redis, or a relational database), create a separate `Client`
+instance per user instead of using the global `garth.client` singleton.
+
+### Per-user client instances
+
+Every `Client` is fully self-contained — it holds its own OAuth2 token, HTTP
+session, and configuration:
+
+```python
+from garth import Client
+
+# Load a user's token from your database
+token_b64 = db.get(f"users/{user_id}/garth_token")
+
+client = Client()
+client.loads(token_b64)
+
+# Use any API — stats, data models, direct calls
+steps = client.connectapi(
+    "/usersummary-service/stats/steps/daily/2025-04-01/2025-04-07"
+)
+```
+
+### Data and stats models with custom client
+
+All data and stats models accept an optional `client` parameter. When omitted,
+they fall back to the global singleton. Pass your instance to use a specific
+user's session:
+
+```python
+from garth import Client, WeightData, DailySteps, SleepData
+
+client = Client()
+client.loads(token_from_db)
+
+WeightData.list(days=7, client=client)
+DailySteps.list(period=7, client=client)
+SleepData.list(days=3, client=client)
+```
+
+### Persisting refreshed tokens
+
+Unlike `GARTH_HOME` (which auto-persists to disk), database-backed tokens
+require manual persistence after each API call — the token may have been
+silently refreshed:
+
+```python
+def fetch_for_user(user_id: str, path: str):
+    client = Client()
+    client.loads(db.get(f"users/{user_id}/garth_token"))
+    result = client.connectapi(path)
+    # Token may have been refreshed — always persist back
+    db.set(f"users/{user_id}/garth_token", client.dumps())
+    return result
+```
+
+!!! warning "Thread safety"
+    Each `Client` has its own HTTP session, so parallel requests across
+    different instances are safe. However, a single `Client` instance is
+    **not** thread-safe — if two threads call the API with the same instance
+    simultaneously, both may attempt a token refresh. Use a lock per user or
+    create short-lived instances per request.
+
 ## MFA Handling
 
 ### Interactive login
