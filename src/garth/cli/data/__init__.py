@@ -26,6 +26,12 @@ from garth.cli.data.sleep import app as sleep_app
 from garth.cli.data.sleep_detail import app as sleep_detail_app
 from garth.cli.data.training_readiness import app as training_readiness_app
 from garth.cli.data.weight import app as weight_app
+from garth.cli.data.blood_pressure import app as blood_pressure_app
+from garth.cli.data.nutrition import app as nutrition_app
+from garth.cli.data.personal_record import app as personal_record_app
+from garth.cli.data.personal_record_type import app as personal_record_type_app
+from garth.cli.data.weight_goal import app as weight_goal_app
+from garth.cli.data.steps_goal import app as steps_goal_app
 
 
 data_app.add_typer(body_battery_app, name="body-battery")
@@ -41,3 +47,9 @@ data_app.add_typer(training_readiness_app, name="training-readiness")
 data_app.add_typer(weight_app, name="weight")
 data_app.add_typer(activity_app, name="activity")
 data_app.add_typer(fitness_activity_app, name="fitness-activity")
+data_app.add_typer(blood_pressure_app, name="blood-pressure")
+data_app.add_typer(nutrition_app, name="nutrition")
+data_app.add_typer(personal_record_app, name="personal-record")
+data_app.add_typer(personal_record_type_app, name="personal-record-type")
+data_app.add_typer(weight_goal_app, name="weight-goal")
+data_app.add_typer(steps_goal_app, name="steps-goal")
