@@ -32,6 +32,7 @@ nav:
   - Home: index.md
   - Getting Started: getting-started.md
   - Configuration: configuration.md
+  - CLI Reference: cli.md
   - API Reference:
       - Connect API: api/connect-api.md
       - Stats: api/stats.md

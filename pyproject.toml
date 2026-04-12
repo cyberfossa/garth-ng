@@ -45,6 +45,9 @@ keywords = [
 "Changelog" = "https://github.com/cyberfossa/garth-ng/releases"
 
 [project.optional-dependencies]
+cli = [
+    "typer>=0.9,<1.0",
+]
 docs = [
     "zensical",
 ]
@@ -88,6 +91,7 @@ dev = [
 linting = [
     "ruff",
     "ty",
+    "typer>=0.9,<1.0",
 ]
 testing = [
     "coverage",
@@ -95,6 +99,7 @@ testing = [
     "pytest",
     "pyyaml>=6.0",
     "logfire>=2.11,<5.0",
+    "typer>=0.9,<1.0",
 ]
 
 [tool.ruff.lint.isort]
