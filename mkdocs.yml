@@ -31,6 +31,7 @@ theme:
 nav:
   - Home: index.md
   - Getting Started: getting-started.md
+  - Authentication: authentication.md
   - Configuration: configuration.md
   - CLI Reference: cli.md
   - API Reference:
