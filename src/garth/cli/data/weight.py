@@ -73,3 +73,20 @@ def create(
             raise typer.BadParameter(f"Invalid timestamp: {timestamp}")
     WeightData.create(weight=weight, timestamp=ts)
     _dump_json({"created": weight})
+
+
+@app.command(name="delete")
+def delete(
+    ctx: typer.Context,
+    sample_pk: Annotated[
+        int, typer.Argument(help="Unique identifier of the weight record.")
+    ],
+    day: Annotated[
+        str | None,
+        typer.Option("--day", help="Date (YYYY-MM-DD). Defaults to today."),
+    ] = None,
+) -> None:
+    """Delete a weight record."""
+    _resume(ctx)
+    WeightData.delete(sample_pk=sample_pk, day=day)
+    _dump_json({"deleted": sample_pk})

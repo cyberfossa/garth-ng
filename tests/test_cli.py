@@ -1054,3 +1054,29 @@ def test_data_weight_create_invalid_timestamp():
             ["data", "weight", "create", "72.5", "--timestamp", "not-a-date"],
         )
     assert result.exit_code != 0
+
+
+def test_data_weight_delete():
+    runner = _runner()
+    with (
+        patch("garth.resume"),
+        patch("garth.data.WeightData.delete") as mock_delete,
+    ):
+        result = runner.invoke(_app(), ["data", "weight", "delete", "12345"])
+    assert result.exit_code == 0
+    assert '"deleted": 12345' in result.output
+    mock_delete.assert_called_once_with(sample_pk=12345, day=None)
+
+
+def test_data_weight_delete_with_day():
+    runner = _runner()
+    with (
+        patch("garth.resume"),
+        patch("garth.data.WeightData.delete") as mock_delete,
+    ):
+        result = runner.invoke(
+            _app(),
+            ["data", "weight", "delete", "12345", "--day", "2024-01-15"],
+        )
+    assert result.exit_code == 0
+    mock_delete.assert_called_once_with(sample_pk=12345, day="2024-01-15")
