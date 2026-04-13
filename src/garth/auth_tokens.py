@@ -29,9 +29,6 @@ class OAuth2Token:
             expires (auto-computed).
         scope: OAuth scope(s) granted.
         jti: JWT ID claim.
-        mfa_token: MFA-related token (if MFA was used).
-        mfa_expiration_timestamp: MFA token expiry (string format).
-        mfa_expiration_timestamp_millis: MFA token expiry (milliseconds).
         client_id: OAuth client ID.
     """
 
@@ -44,9 +41,6 @@ class OAuth2Token:
     refresh_token_expires_at: float | None = None
     scope: str | None = None
     jti: str | None = None
-    mfa_token: str | None = None
-    mfa_expiration_timestamp: str | None = None
-    mfa_expiration_timestamp_millis: int | None = None
     client_id: str | None = None
 
     def __post_init__(self) -> None:
@@ -97,8 +91,6 @@ class OAuth2Token:
             f"token_type={self.token_type!r}, "
             f"access_token='***', "
             f"refresh_token='***', "
-            f"mfa_token='***', "
-            f"mfa_expiration_timestamp={self.mfa_expiration_timestamp!r}, "
             f"expires_in={self.expires_in!r}, "
             f"expires_at={self.expires_at!r}, "
             f"refresh_token_expires_in={self.refresh_token_expires_in!r}, "

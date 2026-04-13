@@ -26,9 +26,6 @@ def make_token_payload(
     refresh_expires_in: int | None = None,
     scope: str | None = None,
     jti: str | None = None,
-    mfa_token: str | None = None,
-    mfa_expiration_timestamp: str | None = None,
-    mfa_expiration_timestamp_millis: int | None = None,
 ) -> bytes:
     payload_parts = [
         f'"access_token":"{access_token}"',
@@ -44,16 +41,6 @@ def make_token_payload(
         payload_parts.append(f'"scope":"{scope}"')
     if jti is not None:
         payload_parts.append(f'"jti":"{jti}"')
-    if mfa_token is not None:
-        payload_parts.append(f'"mfa_token":"{mfa_token}"')
-    if mfa_expiration_timestamp is not None:
-        payload_parts.append(
-            f'"mfa_expiration_timestamp":"{mfa_expiration_timestamp}"'
-        )
-    if mfa_expiration_timestamp_millis is not None:
-        payload_parts.append(
-            f'"mfa_expiration_timestamp_millis":{mfa_expiration_timestamp_millis}'
-        )
     return ("{" + ",".join(payload_parts) + "}").encode()
 
 
@@ -112,9 +99,6 @@ def test_exchange_service_ticket_success():
             refresh_expires_in=7200,
             scope="read",
             jti="token-jti",
-            mfa_token="mfa-123",
-            mfa_expiration_timestamp="2026-01-01T00:00:00.000Z",
-            mfa_expiration_timestamp_millis=1767225600000,
         )
     )
     session = FakeSession([response])
@@ -131,9 +115,6 @@ def test_exchange_service_ticket_success():
     assert token.expires_in == 3600
     assert token.scope == "read"
     assert token.jti == "token-jti"
-    assert token.mfa_token == "mfa-123"
-    assert token.mfa_expiration_timestamp == "2026-01-01T00:00:00.000Z"
-    assert token.mfa_expiration_timestamp_millis == 1767225600000
     assert token.expires_at is not None
     assert token.refresh_token_expires_at is not None
     assert token.expires_at > 0

@@ -17,7 +17,6 @@ def test_oauth2_token_construction():
     assert token.expires_at is not None
     assert token.scope is None
     assert token.jti is None
-    assert token.mfa_token is None
 
 
 def test_str(oauth2_token: OAuth2Token):
@@ -29,11 +28,8 @@ def test_repr_hides_tokens(oauth2_token: OAuth2Token):
 
     assert "access_token='***'" in r
     assert "refresh_token='***'" in r
-    assert "mfa_token='***'" in r
     assert oauth2_token.access_token not in r
     assert oauth2_token.refresh_token not in r
-    if oauth2_token.mfa_token:
-        assert oauth2_token.mfa_token not in r
 
 
 def test_expired_when_expires_at_in_past():
@@ -80,15 +76,10 @@ def test_refresh_not_expired_when_none():
     assert token.refresh_expired is False
 
 
-def test_oauth2_token_preserves_jti_and_mfa_fields(
+def test_oauth2_token_preserves_jti_field(
     oauth2_token: OAuth2Token,
 ):
     assert oauth2_token.jti == "foo"
-    assert oauth2_token.mfa_token == "mfa-token"
-    assert oauth2_token.mfa_expiration_timestamp is not None
-    assert oauth2_token.mfa_expiration_timestamp.endswith("Z")
-    assert isinstance(oauth2_token.mfa_expiration_timestamp_millis, int)
-    assert oauth2_token.mfa_expiration_timestamp_millis > 0
 
 
 def test_oauth2_token_no_client_id_defaults_to_none():
