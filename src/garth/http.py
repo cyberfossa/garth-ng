@@ -77,6 +77,7 @@ class Client:
         )
         self.session.headers.update(USER_AGENT)
         self.telemetry = Telemetry()
+        self._on_token_update = self._dump_to_home
         self._auto_resume()
         self.configure(
             timeout=self.timeout,
@@ -103,6 +104,7 @@ class Client:
         telemetry_send_to_logfire: bool | None = None,
         telemetry_token: str | None = None,
         telemetry_callback: Callable[[dict[str, Any]], None] | None = None,
+        on_token_update: Callable[[OAuth2Token], None] | None = None,
     ):
         """Configure HTTP client and telemetry settings.
 
@@ -124,6 +126,8 @@ class Client:
             self.status_forcelist = status_forcelist
         if backoff_factor is not None:
             self.backoff_factor = backoff_factor
+        if on_token_update is not None:
+            self._on_token_update = on_token_update
 
         self.telemetry.configure(
             enabled=telemetry_enabled,
@@ -131,6 +135,10 @@ class Client:
             token=telemetry_token,
             callback=telemetry_callback,
         )
+
+    def _dump_to_home(self, _: OAuth2Token):
+        if self._garth_home:
+            self.dump(self._garth_home)
 
     def _auto_resume(self):
         """Auto-resume session from GARTH_HOME or GARTH_TOKEN env vars."""
@@ -304,8 +312,7 @@ class Client:
             result.ticket,
             result.service_url,
         )
-        if self._garth_home:
-            self.dump(self._garth_home)
+        self._on_token_update(self.oauth2_token)
         return self.oauth2_token
 
     def resume_login(self, mfa_state: MFAState, mfa_code: str) -> OAuth2Token:
@@ -327,8 +334,7 @@ class Client:
             result.ticket,
             result.service_url,
         )
-        if self._garth_home:
-            self.dump(self._garth_home)
+        self._on_token_update(self.oauth2_token)
         return self.oauth2_token
 
     def refresh_token(self):
@@ -344,8 +350,7 @@ class Client:
         self.oauth2_token = oauth.refresh_oauth2_token(
             self.session, self.oauth2_token
         )
-        if self._garth_home:
-            self.dump(self._garth_home)
+        self._on_token_update(self.oauth2_token)
 
     def connectapi(
         self, path: str, method="GET", **kwargs
