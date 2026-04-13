@@ -1,4 +1,6 @@
+import dataclasses
 import time
+from typing import Any
 
 from pydantic import ConfigDict
 from pydantic.dataclasses import dataclass
@@ -41,6 +43,8 @@ class OAuth2Token:
     refresh_token_expires_at: float | None = None
     scope: str | None = None
     jti: str | None = None
+    created_at: float | None = None
+    updated_at: float | None = None
     client_id: str | None = None
 
     def __post_init__(self) -> None:
@@ -59,6 +63,10 @@ class OAuth2Token:
             and self.refresh_token_expires_in is not None
         ):
             self.refresh_token_expires_at = now + self.refresh_token_expires_in
+        if self.created_at is None:
+            self.created_at = now
+        if self.updated_at is None:
+            self.updated_at = now
 
     @property
     def expired(self) -> bool:
@@ -94,8 +102,14 @@ class OAuth2Token:
             f"expires_in={self.expires_in!r}, "
             f"expires_at={self.expires_at!r}, "
             f"refresh_token_expires_in={self.refresh_token_expires_in!r}, "
-            f"refresh_token_expires_at={self.refresh_token_expires_at!r})"
+            f"refresh_token_expires_at={self.refresh_token_expires_at!r}, "
+            f"created_at={self.created_at!r}, "
+            f"updated_at={self.updated_at!r})"
         )
+
+    def to_dict(self) -> dict[str, Any]:
+        """Return a plain dict representation suitable for external storage."""
+        return dataclasses.asdict(self)
 
     def __str__(self) -> str:
         return f"{self.token_type.title()} {self.access_token}"
