@@ -62,3 +62,35 @@ garth.configure(
     HTTP 429 (Too Many Requests) is not in the default retry list because
     retrying can make rate limiting worse. Add it explicitly if needed:
     `status_forcelist=(408, 429, 500, 502, 503, 504)`
+
+## Token Persistence
+
+### Custom token callback
+
+Register a callback that fires automatically after login and every token
+refresh. Use this instead of `GARTH_HOME` when you need custom storage
+(database, secrets manager, etc.):
+
+```python
+def persist_token(token: OAuth2Token) -> None:
+    redis.set("garth:token", token.to_dict())
+
+garth.configure(on_token_update=persist_token)
+```
+
+The callback receives the fresh `OAuth2Token` after each successful login or
+refresh. It **replaces** the automatic file dump — when a callback is set,
+`GARTH_HOME` is ignored for auto-persistence.
+
+To revert to the default persistence behavior:
+
+```python
+garth.configure(
+    on_token_update=garth.client.dump_to_home
+)
+```
+
+!!! warning "Exception handling"
+    If your callback raises an exception, it propagates up through the login or
+    refresh call. Handle errors inside your callback to avoid interrupting the
+    authentication flow.
