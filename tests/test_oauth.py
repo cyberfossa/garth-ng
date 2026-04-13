@@ -112,7 +112,7 @@ def test_exchange_service_ticket_success():
     assert isinstance(token, OAuth2Token)
     assert token.access_token == "access-123"
     assert token.refresh_token == "refresh-123"
-    assert token.expires_in == 3600
+    assert token.expires_at is not None
     assert token.scope == "read"
     assert token.jti == "token-jti"
     assert token.expires_at is not None
@@ -176,7 +176,7 @@ def test_refresh_oauth2_token():
     assert isinstance(new_token, OAuth2Token)
     assert new_token.access_token == "access-new"
     assert new_token.refresh_token == "refresh-new"
-    assert new_token.expires_in == 1800
+    assert new_token.expires_at is not None
 
     call_data = session.calls[0]["data"]
     assert isinstance(call_data, dict)
@@ -259,7 +259,7 @@ def test_exchange_refresh_expires_in_zero():
     )
 
     assert token.refresh_token_expires_at is not None
-    assert token.refresh_token_expires_in == 0
+    assert "refresh_token_expires_in" not in token.__dict__
 
 
 def test_exchange_tries_all_client_ids(monkeypatch: MonkeyPatch):

@@ -1,5 +1,6 @@
 import dataclasses
 import time
+from dataclasses import InitVar
 from typing import Any
 
 from pydantic import ConfigDict
@@ -22,32 +23,36 @@ class OAuth2Token:
     Attributes:
         access_token: JWT for API calls.
         refresh_token: Token used to obtain a new access token.
-        expires_in: Seconds until access_token expires.
         token_type: Token type, typically "Bearer".
         expires_at: Unix timestamp when access_token expires
             (auto-computed).
-        refresh_token_expires_in: Seconds until refresh_token expires.
         refresh_token_expires_at: Unix timestamp when refresh_token
             expires (auto-computed).
         scope: OAuth scope(s) granted.
         jti: JWT ID claim.
+        created_at: Unix timestamp when token was created.
+        updated_at: Unix timestamp when token was last updated.
         client_id: OAuth client ID.
     """
 
     access_token: str
     refresh_token: str
-    expires_in: int
     token_type: str = "Bearer"
     expires_at: float | None = None
-    refresh_token_expires_in: int | None = None
     refresh_token_expires_at: float | None = None
     scope: str | None = None
     jti: str | None = None
     created_at: float | None = None
     updated_at: float | None = None
     client_id: str | None = None
+    expires_in: InitVar[int | None] = None
+    refresh_token_expires_in: InitVar[int | None] = None
 
-    def __post_init__(self) -> None:
+    def __post_init__(
+        self,
+        expires_in: int | None = None,
+        refresh_token_expires_in: int | None = None,
+    ) -> None:
         """Compute expires_at and refresh_token_expires_at timestamps.
 
         If expires_at is not explicitly provided, it is calculated as the
@@ -56,13 +61,13 @@ class OAuth2Token:
         if not provided.
         """
         now = time.time()
-        if self.expires_at is None and self.expires_in is not None:
-            self.expires_at = now + self.expires_in
+        if self.expires_at is None and expires_in is not None:
+            self.expires_at = now + expires_in
         if (
             self.refresh_token_expires_at is None
-            and self.refresh_token_expires_in is not None
+            and refresh_token_expires_in is not None
         ):
-            self.refresh_token_expires_at = now + self.refresh_token_expires_in
+            self.refresh_token_expires_at = now + refresh_token_expires_in
         if self.created_at is None:
             self.created_at = now
         if self.updated_at is None:
@@ -99,9 +104,7 @@ class OAuth2Token:
             f"token_type={self.token_type!r}, "
             f"access_token='***', "
             f"refresh_token='***', "
-            f"expires_in={self.expires_in!r}, "
             f"expires_at={self.expires_at!r}, "
-            f"refresh_token_expires_in={self.refresh_token_expires_in!r}, "
             f"refresh_token_expires_at={self.refresh_token_expires_at!r}, "
             f"created_at={self.created_at!r}, "
             f"updated_at={self.updated_at!r})"
