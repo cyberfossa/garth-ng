@@ -127,8 +127,6 @@ Every `Client` is fully self-contained — it holds its own OAuth2 token, HTTP
 session, and configuration:
 
 ```python
-from garth import Client
-
 # Load a user's token from your database
 token_b64 = db.get(f"users/{user_id}/garth_token")
 
@@ -148,8 +146,6 @@ they fall back to the global singleton. Pass your instance to use a specific
 user's session:
 
 ```python
-from garth import Client, WeightData, DailySteps, SleepData
-
 client = Client()
 client.loads(token_from_db)
 
@@ -199,8 +195,6 @@ The callable takes no arguments and must return the code as a string.
 For web apps or any async context where you can't block waiting for user input:
 
 ```python
-from garth.sso.state import MFAState
-
 login_result = garth.client.login(email, password, return_on_mfa=True)
 if isinstance(login_result, MFAState):
     # Suspend here, deliver MFA prompt through your app's own mechanism
@@ -213,8 +207,6 @@ if isinstance(login_result, MFAState):
 If you can't use `prompt_mfa` or `return_on_mfa`, catch the exception directly:
 
 ```python
-from garth.exc import MFARequiredError
-
 try:
     garth.login(email, password)
 except MFARequiredError as e:
@@ -250,8 +242,6 @@ When the refresh token expires, the next `connectapi()` call raises
 `GarthException`. The standard pattern is to catch it and re-authenticate:
 
 ```python
-from garth.exc import GarthException
-
 try:
     data = garth.connectapi("/wellness-service/wellness/dailySummary")
 except GarthException:
