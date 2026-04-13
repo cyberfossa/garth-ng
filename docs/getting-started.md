@@ -128,3 +128,6 @@ uvx garth --domain garmin.cn login
 !!! note "Token lifetime"
     The OAuth2 token auto-refreshes as needed when making API calls, as long
     as the refresh token has not expired.
+
+For a deeper look at the token lifecycle, MFA modes, error handling, and
+programmatic token management, see [Authentication](authentication.md).

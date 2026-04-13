@@ -61,7 +61,23 @@ def handle_mfa(
     mfa_state: MFAState,
     mfa_code: str,
 ) -> LoginResult:
-    """Dispatch MFA verification to the original strategy."""
+    """Dispatch MFA verification to the original login strategy.
+
+    Completes the MFA challenge by routing the MFA code to the strategy
+    that initiated the authentication. Retrieves strategy-specific session
+    state from mfa_state and submits the code for verification.
+
+    Args:
+        session: curl_cffi Session for HTTP requests.
+        mfa_state: MFA state object returned by login() when MFA was required.
+        mfa_code: The MFA code entered by the user.
+
+    Returns:
+        LoginResult with service ticket and URL for OAuth2 token exchange.
+
+    Raises:
+        GarthException: If the strategy name in mfa_state is not recognized.
+    """
     for strategy in STRATEGIES:
         if strategy.name == mfa_state.strategy_name:
             return strategy.handle_mfa(

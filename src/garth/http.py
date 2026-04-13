@@ -43,6 +43,13 @@ class GarthSettings(BaseSettings):
 
 
 class Client:
+    """HTTP client for Garmin Connect API with OAuth2 authentication.
+
+    Handles OAuth2 token management, session persistence, API requests
+    with automatic token refresh, and MFA workflows. Create an instance
+    directly or access the global `client` singleton.
+    """
+
     session: Session
     last_resp: Response | None = None
     domain: str = "garmin.com"
@@ -56,6 +63,13 @@ class Client:
     telemetry: Telemetry
 
     def __init__(self, session: Session | None = None, **kwargs):
+        """Initialize a new Client instance.
+
+        Args:
+            session: Pre-configured curl_cffi Session, or None for
+                default chrome120 session.
+            **kwargs: Passed to configure().
+        """
         self.session = (
             session
             if session is not None
@@ -90,6 +104,10 @@ class Client:
         telemetry_token: str | None = None,
         telemetry_callback: Callable[[dict[str, Any]], None] | None = None,
     ):
+        """Configure HTTP client and telemetry settings.
+
+        All parameters are optional — only provided values are applied.
+        """
         if oauth2_token is not None:
             self.oauth2_token = oauth2_token
         if domain:
@@ -160,6 +178,27 @@ class Client:
         headers: dict[str, str] | None = None,
         **kwargs,
     ) -> Response:
+        """Make an HTTP request to a Garmin subdomain endpoint.
+
+        Handles OAuth2 auth, token refresh, and retries with backoff.
+        See docs/authentication.md for token lifecycle details.
+
+        Args:
+            method: HTTP method ("GET", "POST", etc.).
+            subdomain: Garmin subdomain (e.g., "connectapi").
+            path: Request path.
+            api: Add OAuth2 Authorization header and auto-refresh.
+            referrer: True for last_resp.url, or a string URL.
+            headers: Additional headers.
+            **kwargs: Passed to curl_cffi Session.request().
+
+        Returns:
+            curl_cffi Response object.
+
+        Raises:
+            GarthException: No valid token when api=True.
+            GarthHTTPError: Non-success HTTP status.
+        """
         method_upper = method.upper()
         if method_upper not in _SUPPORTED_METHODS:
             raise GarthException(msg=f"Unsupported HTTP method: {method}")
@@ -228,6 +267,23 @@ class Client:
         prompt_mfa: Callable[[], str] | None = None,
         return_on_mfa: bool = False,
     ) -> OAuth2Token | MFAState:
+        """Authenticate with Garmin using email and password.
+
+        See docs/authentication.md for MFA workflow details.
+
+        Args:
+            email: Garmin account email.
+            password: Garmin account password.
+            prompt_mfa: Callback returning MFA code string, or None.
+            return_on_mfa: Return MFAState instead of raising.
+
+        Returns:
+            OAuth2Token or MFAState (if return_on_mfa=True).
+
+        Raises:
+            MFARequiredError: MFA required with no handler.
+            GarthException: Login or MFA validation failed.
+        """
         try:
             result = sso.login(self.session, email, password, self.domain)
         except MFARequiredError as e:
@@ -253,6 +309,18 @@ class Client:
         return self.oauth2_token
 
     def resume_login(self, mfa_state: MFAState, mfa_code: str) -> OAuth2Token:
+        """Complete MFA challenge after receiving code from user.
+
+        Args:
+            mfa_state: State from login() or MFARequiredError.state.
+            mfa_code: User-provided MFA code.
+
+        Returns:
+            OAuth2Token after MFA verification.
+
+        Raises:
+            GarthException: MFA validation failed.
+        """
         result = sso.handle_mfa(self.session, mfa_state, mfa_code)
         self.oauth2_token = oauth.exchange_service_ticket(
             self.session,
@@ -264,6 +332,13 @@ class Client:
         return self.oauth2_token
 
     def refresh_token(self):
+        """Refresh OAuth2 token using the refresh token.
+
+        Called automatically by request() on expired access tokens.
+
+        Raises:
+            GarthException: No OAuth2Token or refresh token expired.
+        """
         if not self.oauth2_token:
             raise GarthException(msg="OAuth2Token required for refresh")
         self.oauth2_token = oauth.refresh_oauth2_token(
@@ -308,6 +383,11 @@ class Client:
         return result
 
     def dump(self, dir_path: str, /):
+        """Persist OAuth2 token to dir_path/oauth2_token.json.
+
+        Args:
+            dir_path: Target directory (created if needed).
+        """
         dir_path = os.path.expanduser(dir_path)
         os.makedirs(dir_path, exist_ok=True)
         if self.oauth2_token:
@@ -315,6 +395,14 @@ class Client:
                 json.dump(asdict(self.oauth2_token), f, indent=4)
 
     def dumps(self) -> str:
+        """Serialize OAuth2 token to a base64-encoded string.
+
+        Returns:
+            Base64-encoded JSON string.
+
+        Raises:
+            GarthException: No OAuth2Token available.
+        """
         if self.oauth2_token:
             r = [asdict(self.oauth2_token)]
             s = json.dumps(r)
@@ -323,6 +411,14 @@ class Client:
         raise GarthException(msg="No OAuth2Token available to serialize")
 
     def load(self, dir_path: str):
+        """Load OAuth2 token from dir_path/oauth2_token.json.
+
+        Args:
+            dir_path: Directory containing token file.
+
+        Raises:
+            GarthException: Token not found or legacy OAuth1 format.
+        """
         dir_path = os.path.expanduser(dir_path)
         oauth2_path = os.path.join(dir_path, OAUTH2_TOKEN_FILE)
         oauth1_path = os.path.join(dir_path, OAUTH1_TOKEN_FILE)
@@ -346,6 +442,14 @@ class Client:
             )
 
     def loads(self, s: str):
+        """Deserialize OAuth2 token from a base64-encoded string.
+
+        Args:
+            s: Base64-encoded token string (from dumps() or GARTH_TOKEN).
+
+        Raises:
+            GarthException: Invalid or legacy token format.
+        """
         data = json.loads(base64.b64decode(s))
         if (
             isinstance(data, list)
