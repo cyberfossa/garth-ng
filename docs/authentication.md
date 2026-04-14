@@ -200,12 +200,12 @@ to the default behavior (file dump when `GARTH_HOME` is set, noop
 otherwise):
 
 ```python
-client.configure(on_token_update=client._dump_to_home)
+client.configure(on_token_update=client.dump_to_home)
 ```
 
 For the global singleton, use
 `garth.configure(on_token_update=callback)` to set a custom
-callback, and pass `_dump_to_home` to revert.
+callback, and pass `dump_to_home` to revert.
 
 !!! warning "Exception handling"
     If your callback raises an exception, it propagates up through the login or

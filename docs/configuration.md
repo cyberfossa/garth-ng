@@ -86,7 +86,7 @@ To revert to the default persistence behavior:
 
 ```python
 garth.configure(
-    on_token_update=garth.client._dump_to_home
+    on_token_update=garth.client.dump_to_home
 )
 ```
 

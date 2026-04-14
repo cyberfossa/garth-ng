@@ -1008,7 +1008,7 @@ def test_configure_resets_to_dump_to_home(garth_home_client, monkeypatch):
     assert received == [mock_oauth2_token]
     received.clear()
 
-    client.configure(on_token_update=client._dump_to_home)
+    client.configure(on_token_update=client.dump_to_home)
     client.oauth2_token = mock_oauth2_token
     client._on_token_update(mock_oauth2_token)
 
@@ -1022,7 +1022,7 @@ def test_configure_resets_to_dump_to_home_noop(
     received: list[OAuth2Token] = []
     client.configure(on_token_update=received.append)
 
-    client.configure(on_token_update=client._dump_to_home)
+    client.configure(on_token_update=client.dump_to_home)
     mock_token = OAuth2Token(
         access_token="test",
         refresh_token="refresh",
@@ -1059,3 +1059,37 @@ def test_custom_callback_overrides_auto_dump(garth_home_client, monkeypatch):
     client.login("user@example.com", "password")
     assert received == [mock_oauth2_token]
     assert not dump_called  # Custom callback replaced dump lambda
+
+
+def test_configure_none_disables_callback(
+    garth_home_client, monkeypatch: pytest.MonkeyPatch
+):
+    client, tempdir, mock_oauth2_token = garth_home_client
+    # _auto_resume set dump_to_home because GARTH_HOME exists
+    # Verify dump is initially active
+    client.oauth2_token = mock_oauth2_token
+    client._on_token_update(mock_oauth2_token)
+    _assert_oauth2_token_saved(tempdir, mock_oauth2_token)
+
+    # Clear saved token for next test
+    import os as os_module
+
+    oauth2_path = os_module.path.join(
+        os_module.path.expanduser(tempdir), "oauth2_token.json"
+    )
+    if os_module.path.exists(oauth2_path):
+        os_module.remove(oauth2_path)
+
+    # Disable via None
+    client.configure(on_token_update=None)
+    assert callable(client._on_token_update)
+
+    # Override to custom callback
+    received: list[OAuth2Token] = []
+    client.configure(on_token_update=received.append)
+    # Disable again with None
+    client.configure(on_token_update=None)
+    client._on_token_update(mock_oauth2_token)
+    # Should not have called the custom callback
+    assert not received
+    assert callable(client._on_token_update)

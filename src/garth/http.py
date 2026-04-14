@@ -27,6 +27,15 @@ OAUTH2_TOKEN_FILE = "oauth2_token.json"
 _SUPPORTED_METHODS: frozenset[str] = frozenset(get_args(HttpMethod))
 
 
+class _Unset:
+    """Sentinel for unset parameters."""
+
+    __slots__ = ()
+
+
+_UNSET = _Unset()
+
+
 class GarthSettings(BaseSettings):
     model_config = SettingsConfigDict(env_prefix="GARTH_")
 
@@ -60,7 +69,16 @@ class Client:
     backoff_factor: float = 0.5
     _user_profile: dict[str, Any] | None = None
     _garth_home: str | None = None
+    _on_token_update: Callable[[OAuth2Token], None]
     telemetry: Telemetry
+
+    @staticmethod
+    def _noop_token_callback(_: OAuth2Token) -> None:
+        pass
+
+    def dump_to_home(self, _: OAuth2Token):
+        if self._garth_home:
+            self.dump(self._garth_home)
 
     def __init__(self, session: Session | None = None, **kwargs):
         """Initialize a new Client instance.
@@ -77,7 +95,7 @@ class Client:
         )
         self.session.headers.update(USER_AGENT)
         self.telemetry = Telemetry()
-        self._on_token_update = self._dump_to_home
+        self._on_token_update = self._noop_token_callback
         self._auto_resume()
         self.configure(
             timeout=self.timeout,
@@ -104,7 +122,9 @@ class Client:
         telemetry_send_to_logfire: bool | None = None,
         telemetry_token: str | None = None,
         telemetry_callback: Callable[[dict[str, Any]], None] | None = None,
-        on_token_update: Callable[[OAuth2Token], None] | None = None,
+        on_token_update: Callable[[OAuth2Token], None]
+        | _Unset
+        | None = _UNSET,
     ):
         """Configure HTTP client and telemetry settings.
 
@@ -126,8 +146,13 @@ class Client:
             self.status_forcelist = status_forcelist
         if backoff_factor is not None:
             self.backoff_factor = backoff_factor
-        if on_token_update is not None:
-            self._on_token_update = on_token_update
+        if on_token_update is not _UNSET:
+            if on_token_update is None:
+                self._on_token_update = self._noop_token_callback
+            else:
+                self._on_token_update = cast(
+                    Callable[[OAuth2Token], None], on_token_update
+                )
 
         self.telemetry.configure(
             enabled=telemetry_enabled,
@@ -136,15 +161,12 @@ class Client:
             callback=telemetry_callback,
         )
 
-    def _dump_to_home(self, _: OAuth2Token):
-        if self._garth_home:
-            self.dump(self._garth_home)
-
     def _auto_resume(self):
         """Auto-resume session from GARTH_HOME or GARTH_TOKEN env vars."""
         settings = GarthSettings()
         if settings.home:
             self._garth_home = settings.home
+            self._on_token_update = self.dump_to_home
             oauth2_token_path = os.path.join(
                 os.path.expanduser(settings.home), OAUTH2_TOKEN_FILE
             )
