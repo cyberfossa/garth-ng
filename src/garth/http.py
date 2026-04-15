@@ -124,6 +124,7 @@ class Client:
         on_token_update: Callable[[OAuth2Token], None]
         | _Unset
         | None = _UNSET,
+        garth_home: str | _Unset | None = _UNSET,
     ):
         """Configure HTTP client and telemetry settings.
 
@@ -135,6 +136,9 @@ class Client:
                 ``GARTH_HOME`` auto-dump when set. Pass ``None`` to disable
                 auto-persistence (noop). To restore file persistence, pass
                 ``client.dump_to_home``.
+            garth_home: Home directory for token persistence. When set and
+                ``on_token_update`` is not explicitly provided, callback is set
+                to ``client.dump_to_home``. Pass ``None`` to clear.
         """
         if oauth2_token is not None:
             self.oauth2_token = oauth2_token
@@ -159,6 +163,13 @@ class Client:
                 self._on_token_update = cast(
                     Callable[[OAuth2Token], None], on_token_update
                 )
+        if not isinstance(garth_home, _Unset):
+            self._garth_home = garth_home
+            if isinstance(on_token_update, _Unset):
+                if garth_home is not None:
+                    self._on_token_update = self.dump_to_home
+                else:
+                    self._on_token_update = self._noop_token_callback
 
         self.telemetry.configure(
             enabled=telemetry_enabled,
@@ -438,7 +449,7 @@ class Client:
 
         raise GarthException(msg="No OAuth2Token available to serialize")
 
-    def load(self, dir_path: str):
+    def load(self, dir_path: str | None = None):
         """Load OAuth2 token from dir_path/oauth2_token.json.
 
         Args:
@@ -447,12 +458,22 @@ class Client:
         Raises:
             GarthException: Token not found.
         """
+        if dir_path is None:
+            dir_path = self._garth_home
+            if dir_path is None:
+                raise GarthException(
+                    msg=("No dir_path provided and garth_home not configured")
+                )
+
         dir_path = os.path.expanduser(dir_path)
         oauth2_path = os.path.join(dir_path, OAUTH2_TOKEN_FILE)
 
         if os.path.exists(oauth2_path):
             with open(oauth2_path) as f:
                 self.oauth2_token = OAuth2Token(**json.load(f))
+            self._garth_home = dir_path
+            if self._on_token_update is self._noop_token_callback:
+                self._on_token_update = self.dump_to_home
         else:
             raise GarthException(
                 msg=(

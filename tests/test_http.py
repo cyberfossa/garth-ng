@@ -1,3 +1,5 @@
+import json
+import os
 import tempfile
 import time
 from typing import Any, cast
@@ -1060,7 +1062,6 @@ def test_configure_none_disables_callback(
     _assert_oauth2_token_saved(tempdir, mock_oauth2_token)
 
 
-@pytest.mark.xfail(reason="load() doesn't set callback yet", strict=True)
 def test_load_sets_persistence_callback(monkeypatch: pytest.MonkeyPatch):
     monkeypatch.delenv("GARTH_HOME", raising=False)
     monkeypatch.delenv("GARTH_TOKEN", raising=False)
@@ -1083,7 +1084,6 @@ def test_load_sets_persistence_callback(monkeypatch: pytest.MonkeyPatch):
         assert new_client._on_token_update == new_client.dump_to_home
 
 
-@pytest.mark.xfail(reason="load() doesn't set callback yet", strict=True)
 def test_load_enables_refresh_persistence(
     monkeypatch: pytest.MonkeyPatch,
 ):
@@ -1133,7 +1133,6 @@ def test_load_enables_refresh_persistence(
         assert saved["access_token"] == "refreshed"
 
 
-@pytest.mark.xfail(reason="load() doesn't set callback yet", strict=True)
 def test_load_failure_does_not_set_callback(monkeypatch: pytest.MonkeyPatch):
     monkeypatch.delenv("GARTH_HOME", raising=False)
     monkeypatch.delenv("GARTH_TOKEN", raising=False)
@@ -1152,7 +1151,6 @@ def test_load_failure_does_not_set_callback(monkeypatch: pytest.MonkeyPatch):
         assert new_client._garth_home == os.path.expanduser(tmpdir)
 
 
-@pytest.mark.xfail(reason="load() doesn't set callback yet", strict=True)
 def test_configure_overrides_load_callback(monkeypatch: pytest.MonkeyPatch):
     monkeypatch.delenv("GARTH_HOME", raising=False)
     monkeypatch.delenv("GARTH_TOKEN", raising=False)
@@ -1195,3 +1193,84 @@ def test_auto_resume_still_sets_callback_after_cleanup(
         auto_client = Client()
         assert auto_client._garth_home == tmpdir
         assert auto_client._on_token_update == auto_client.dump_to_home
+
+
+def test_configure_garth_home_sets_persistence(monkeypatch):
+    monkeypatch.delenv("GARTH_HOME", raising=False)
+    monkeypatch.delenv("GARTH_TOKEN", raising=False)
+    c = Client()
+    c.configure(garth_home="/tmp/test-garth")
+    assert c._garth_home == "/tmp/test-garth"
+    assert c._on_token_update == c.dump_to_home
+
+
+def test_configure_garth_home_with_explicit_callback(monkeypatch):
+    monkeypatch.delenv("GARTH_HOME", raising=False)
+    monkeypatch.delenv("GARTH_TOKEN", raising=False)
+    received = []
+
+    def my_cb(token):
+        received.append(token)
+
+    c = Client()
+    c.configure(garth_home="/tmp/test-garth", on_token_update=my_cb)
+    assert c._garth_home == "/tmp/test-garth"
+    assert c._on_token_update == my_cb
+    assert c._on_token_update != c.dump_to_home
+
+
+def test_configure_garth_home_none_clears(monkeypatch):
+    monkeypatch.delenv("GARTH_HOME", raising=False)
+    monkeypatch.delenv("GARTH_TOKEN", raising=False)
+    c = Client()
+    c.configure(garth_home="/tmp/test-garth")
+    c.configure(garth_home=None)
+    assert c._garth_home is None
+    assert c._on_token_update == c._noop_token_callback
+
+
+def test_load_no_arg_uses_garth_home(monkeypatch, tmp_path):
+    monkeypatch.delenv("GARTH_HOME", raising=False)
+    monkeypatch.delenv("GARTH_TOKEN", raising=False)
+    token = {
+        "access_token": "test_token",
+        "refresh_token": "test_refresh",
+        "expires_in": 3600,
+        "expires_at": time.time() + 3600,
+    }
+    (tmp_path / "oauth2_token.json").write_text(json.dumps(token))
+    c = Client()
+    c.configure(garth_home=str(tmp_path))
+    c.load()
+    assert c.oauth2_token is not None
+    assert c.oauth2_token.access_token == "test_token"
+
+
+def test_load_no_arg_raises_without_garth_home(monkeypatch):
+    monkeypatch.delenv("GARTH_HOME", raising=False)
+    monkeypatch.delenv("GARTH_TOKEN", raising=False)
+    c = Client()
+    with pytest.raises(GarthException):
+        c.load()
+
+
+def test_load_does_not_override_custom_callback(monkeypatch, tmp_path):
+    monkeypatch.delenv("GARTH_HOME", raising=False)
+    monkeypatch.delenv("GARTH_TOKEN", raising=False)
+    received = []
+
+    def my_cb(token):
+        received.append(token)
+
+    token = {
+        "access_token": "test_token",
+        "refresh_token": "test_refresh",
+        "expires_in": 3600,
+        "expires_at": time.time() + 3600,
+    }
+    (tmp_path / "oauth2_token.json").write_text(json.dumps(token))
+    c = Client()
+    c.configure(on_token_update=my_cb)
+    c.load(str(tmp_path))
+    assert c._garth_home == str(tmp_path)
+    assert c._on_token_update == my_cb
