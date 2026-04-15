@@ -21,7 +21,6 @@ from .utils import asdict
 
 
 USER_AGENT = {"User-Agent": "GCM-iOS-5.22.1.4"}
-OAUTH1_TOKEN_FILE = "oauth1_token.json"
 OAUTH2_TOKEN_FILE = "oauth2_token.json"
 
 _SUPPORTED_METHODS: frozenset[str] = frozenset(get_args(HttpMethod))
@@ -140,12 +139,7 @@ class Client:
             oauth2_token_path = os.path.join(
                 os.path.expanduser(settings.home), OAUTH2_TOKEN_FILE
             )
-            oauth1_token_path = os.path.join(
-                os.path.expanduser(settings.home), OAUTH1_TOKEN_FILE
-            )
-            if os.path.exists(oauth2_token_path) or os.path.exists(
-                oauth1_token_path
-            ):
+            if os.path.exists(oauth2_token_path):
                 self.load(settings.home)
         elif settings.token:
             self.loads(settings.token)
@@ -417,22 +411,14 @@ class Client:
             dir_path: Directory containing token file.
 
         Raises:
-            GarthException: Token not found or legacy OAuth1 format.
+            GarthException: Token not found.
         """
         dir_path = os.path.expanduser(dir_path)
         oauth2_path = os.path.join(dir_path, OAUTH2_TOKEN_FILE)
-        oauth1_path = os.path.join(dir_path, OAUTH1_TOKEN_FILE)
 
         if os.path.exists(oauth2_path):
             with open(oauth2_path) as f:
                 self.oauth2_token = OAuth2Token(**json.load(f))
-        elif os.path.exists(oauth1_path):
-            raise GarthException(
-                msg=(
-                    "Legacy OAuth1 tokens found. "
-                    "Please re-authenticate with garth.login()"
-                )
-            )
         else:
             raise GarthException(
                 msg=(
