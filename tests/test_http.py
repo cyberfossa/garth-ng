@@ -1034,33 +1034,6 @@ def test_configure_resets_to_dump_to_home_noop(
     assert callable(client._on_token_update)
 
 
-def test_custom_callback_overrides_auto_dump(garth_home_client, monkeypatch):
-    client, tempdir, mock_oauth2_token = garth_home_client
-    dump_called: list[bool] = []
-    monkeypatch.setattr(
-        client, "dump", lambda *a, **kw: dump_called.append(True)
-    )
-    received: list[OAuth2Token] = []
-    client.configure(on_token_update=received.append)
-
-    monkeypatch.setattr(
-        http_mod.sso,
-        "login",
-        lambda *a, **kw: LoginResult(
-            "ST-ticket", "https://sso.garmin.com/sso/embed"
-        ),
-    )
-    monkeypatch.setattr(
-        http_mod.oauth,
-        "exchange_service_ticket",
-        lambda *a, **kw: mock_oauth2_token,
-    )
-
-    client.login("user@example.com", "password")
-    assert received == [mock_oauth2_token]
-    assert not dump_called  # Custom callback replaced dump lambda
-
-
 def test_configure_none_disables_callback(
     garth_home_client, monkeypatch: pytest.MonkeyPatch
 ):

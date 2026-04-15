@@ -76,7 +76,7 @@ class Client:
     def _noop_token_callback(_: OAuth2Token) -> None:
         pass
 
-    def dump_to_home(self, _: OAuth2Token):
+    def dump_to_home(self, _: OAuth2Token) -> None:
         if self._garth_home:
             self.dump(self._garth_home)
 
@@ -129,6 +129,13 @@ class Client:
         """Configure HTTP client and telemetry settings.
 
         All parameters are optional — only provided values are applied.
+
+        Args:
+            on_token_update: Callback invoked after every successful login and
+                token refresh, receiving the fresh ``OAuth2Token``. Replaces
+                ``GARTH_HOME`` auto-dump when set. Pass ``None`` to disable
+                auto-persistence (noop). To restore file persistence, pass
+                ``client.dump_to_home``.
         """
         if oauth2_token is not None:
             self.oauth2_token = oauth2_token
