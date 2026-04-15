@@ -1,5 +1,3 @@
-import json
-import os
 import tempfile
 import time
 from typing import Any, cast
@@ -52,19 +50,6 @@ def test_dump_load_preserves_client_id():
             loaded_client.oauth2_token.client_id
             == "GARMIN_CONNECT_MOBILE_ANDROID_DI_2025Q2"
         )
-
-
-def test_legacy_oauth1_detection():
-    with tempfile.TemporaryDirectory() as tempdir:
-        with open(os.path.join(tempdir, "oauth1_token.json"), "w") as f:
-            json.dump({"oauth_token": "x", "oauth_token_secret": "y"}, f)
-
-        new_client = Client()
-        with pytest.raises(
-            GarthException,
-            match="Legacy OAuth1 tokens found",
-        ):
-            new_client.load(tempdir)
 
 
 def test_load_missing_tokens_raises():

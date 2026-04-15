@@ -57,11 +57,6 @@ profile = garth.client.username
 Internally, `save()` writes `~/.garth/oauth2_token.json` as human-readable JSON
 (4-space indented). `resume()` reads it back and validates the token structure.
 
-!!! note "Legacy OAuth1 tokens"
-    If a directory contains `oauth1_token.json` from an older garth version,
-    `resume()` raises a `GarthException` with instructions to re-authenticate.
-    The OAuth1 format is no longer supported.
-
 ### Environment variables
 
 **`GARTH_HOME`** — ideal for containers and scripts that run repeatedly. Set it
