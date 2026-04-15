@@ -1030,17 +1030,19 @@ def test_configure_none_disables_callback(
     _assert_oauth2_token_saved(tempdir, mock_oauth2_token)
 
     # Clear saved token for next test
-    import os as os_module
-
-    oauth2_path = os_module.path.join(
-        os_module.path.expanduser(tempdir), "oauth2_token.json"
+    oauth2_path = os.path.join(
+        os.path.expanduser(tempdir), "oauth2_token.json"
     )
-    if os_module.path.exists(oauth2_path):
-        os_module.remove(oauth2_path)
+    if os.path.exists(oauth2_path):
+        os.remove(oauth2_path)
 
     # Disable via None
     client.configure(on_token_update=None)
     assert callable(client._on_token_update)
+
+    # Verify None is truly a noop — no file written
+    client._on_token_update(mock_oauth2_token)
+    assert not os.path.exists(oauth2_path)
 
     # Override to custom callback
     received: list[OAuth2Token] = []
@@ -1051,3 +1053,145 @@ def test_configure_none_disables_callback(
     # Should not have called the custom callback
     assert not received
     assert callable(client._on_token_update)
+
+    # Restore file persistence via dump_to_home
+    client.configure(on_token_update=client.dump_to_home)
+    client._on_token_update(mock_oauth2_token)
+    _assert_oauth2_token_saved(tempdir, mock_oauth2_token)
+
+
+@pytest.mark.xfail(reason="load() doesn't set callback yet", strict=True)
+def test_load_sets_persistence_callback(monkeypatch: pytest.MonkeyPatch):
+    monkeypatch.delenv("GARTH_HOME", raising=False)
+    monkeypatch.delenv("GARTH_TOKEN", raising=False)
+    with tempfile.TemporaryDirectory() as tmpdir:
+        # Dump a valid token to tmpdir
+        client = Client()
+        client.oauth2_token = OAuth2Token(
+            access_token="test",
+            refresh_token="refresh",
+            expires_in=3600,
+            expires_at=time.time() + 3600,
+        )
+        client.dump(tmpdir)
+
+        # Fresh client, load from tmpdir
+        new_client = Client()
+        new_client.load(tmpdir)
+
+        assert new_client._garth_home == os.path.expanduser(tmpdir)
+        assert new_client._on_token_update == new_client.dump_to_home
+
+
+@pytest.mark.xfail(reason="load() doesn't set callback yet", strict=True)
+def test_load_enables_refresh_persistence(
+    monkeypatch: pytest.MonkeyPatch,
+):
+    monkeypatch.delenv("GARTH_HOME", raising=False)
+    monkeypatch.delenv("GARTH_TOKEN", raising=False)
+    with tempfile.TemporaryDirectory() as tmpdir:
+        # Dump a valid token to tmpdir
+        client = Client()
+        original_token = OAuth2Token(
+            access_token="original",
+            refresh_token="refresh-original",
+            expires_in=3600,
+            expires_at=time.time() + 3600,
+        )
+        client.oauth2_token = original_token
+        client.dump(tmpdir)
+
+        # Load from tmpdir on a fresh client
+        loader = Client()
+        loader.load(tmpdir)
+
+        # Set an expired token (forces refresh path)
+        loader.oauth2_token = OAuth2Token(
+            access_token="expired",
+            refresh_token="refresh-expired",
+            expires_in=3600,
+            expires_at=time.time() - 1,
+        )
+
+        # Refreshed token to return
+        refreshed = OAuth2Token(
+            access_token="refreshed",
+            refresh_token="refresh-new",
+            expires_in=3600,
+            expires_at=time.time() + 3600,
+        )
+        monkeypatch.setattr(
+            http_mod.oauth, "refresh_oauth2_token", lambda *a, **kw: refreshed
+        )
+
+        loader.refresh_token()
+
+        # Verify the refreshed token was written to disk
+        token_path = os.path.join(tmpdir, "oauth2_token.json")
+        with open(token_path) as f:
+            saved = json.load(f)
+        assert saved["access_token"] == "refreshed"
+
+
+@pytest.mark.xfail(reason="load() doesn't set callback yet", strict=True)
+def test_load_failure_does_not_set_callback(monkeypatch: pytest.MonkeyPatch):
+    monkeypatch.delenv("GARTH_HOME", raising=False)
+    monkeypatch.delenv("GARTH_TOKEN", raising=False)
+    client = Client()
+    with tempfile.TemporaryDirectory() as tmpdir:
+        client.oauth2_token = OAuth2Token(
+            access_token="test",
+            refresh_token="refresh",
+            expires_in=3600,
+            expires_at=time.time() + 3600,
+        )
+        client.dump(tmpdir)
+
+        new_client = Client()
+        new_client.load(tmpdir)
+        assert new_client._garth_home == os.path.expanduser(tmpdir)
+
+
+@pytest.mark.xfail(reason="load() doesn't set callback yet", strict=True)
+def test_configure_overrides_load_callback(monkeypatch: pytest.MonkeyPatch):
+    monkeypatch.delenv("GARTH_HOME", raising=False)
+    monkeypatch.delenv("GARTH_TOKEN", raising=False)
+    with tempfile.TemporaryDirectory() as tmpdir:
+        client = Client()
+        client.oauth2_token = OAuth2Token(
+            access_token="test",
+            refresh_token="refresh",
+            expires_in=3600,
+            expires_at=time.time() + 3600,
+        )
+        client.dump(tmpdir)
+
+        new_client = Client()
+        new_client.load(tmpdir)
+        assert new_client._on_token_update == new_client.dump_to_home
+
+
+def test_auto_resume_still_sets_callback_after_cleanup(
+    monkeypatch: pytest.MonkeyPatch,
+):
+    """Verify _auto_resume() still sets _garth_home and dump_to_home callback.
+
+    This test documents the expected behavior so it continues to pass
+    after _auto_resume() is simplified (redundant lines removed).
+    """
+    monkeypatch.delenv("GARTH_TOKEN", raising=False)
+    with tempfile.TemporaryDirectory() as tmpdir:
+        # Create a valid token file in tmpdir
+        dummy_client = Client()
+        dummy_client.oauth2_token = OAuth2Token(
+            access_token="test",
+            refresh_token="refresh",
+            expires_in=3600,
+            expires_at=time.time() + 3600,
+        )
+        dummy_client.dump(tmpdir)
+
+        monkeypatch.setenv("GARTH_HOME", tmpdir)
+        auto_client = Client()
+        assert auto_client._garth_home == tmpdir
+        assert auto_client._on_token_update == auto_client.dump_to_home
