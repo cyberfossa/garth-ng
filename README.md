@@ -37,7 +37,11 @@ pip install garth-ng
 uv add garth-ng
 ```
 
-The `garth` CLI command is included in the base install — no extras needed.
+The `garth` CLI requires typer — install the CLI extra:
+
+```bash
+pip install 'garth-ng[cli]'
+```
 
 ## Quick Start
 
