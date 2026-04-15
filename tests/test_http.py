@@ -761,3 +761,308 @@ def test_request_raises_when_no_response(
 
     with pytest.raises(GarthException, match="No response returned"):
         client.request("GET", "connect", "/test")
+
+
+def test_on_token_update_fires_on_login(
+    monkeypatch: pytest.MonkeyPatch, client: Client
+):
+    oauth2_token = OAuth2Token(
+        access_token="test_access_token_jwt",
+        refresh_token="test_refresh_token",
+        expires_in=3600,
+        expires_at=time.time() + 3600,
+        refresh_token_expires_in=7200,
+        refresh_token_expires_at=time.time() + 7200,
+    )
+    received: list[OAuth2Token] = []
+    client.configure(on_token_update=received.append)
+
+    monkeypatch.setattr(
+        http_mod.sso,
+        "login",
+        lambda *a, **kw: LoginResult(
+            "ST-ticket", "https://sso.garmin.com/sso/embed"
+        ),
+    )
+    monkeypatch.setattr(
+        http_mod.oauth,
+        "exchange_service_ticket",
+        lambda *a, **kw: oauth2_token,
+    )
+
+    client.login("user@example.com", "password")
+    assert received == [oauth2_token]
+
+
+def test_on_token_update_fires_on_refresh(
+    monkeypatch: pytest.MonkeyPatch, client: Client
+):
+    client.oauth2_token = OAuth2Token(
+        access_token="access-old",
+        refresh_token="refresh-old",
+        expires_in=3600,
+        expires_at=time.time() - 1,
+        refresh_token_expires_in=7200,
+        refresh_token_expires_at=time.time() + 7200,
+    )
+    refreshed_token = OAuth2Token(
+        access_token="access-new",
+        refresh_token="refresh-new",
+        expires_in=3600,
+        expires_at=time.time() + 3600,
+    )
+    received: list[OAuth2Token] = []
+    client.configure(on_token_update=received.append)
+
+    monkeypatch.setattr(
+        http_mod.oauth,
+        "refresh_oauth2_token",
+        lambda *a, **kw: refreshed_token,
+    )
+
+    client.refresh_token()
+    assert received == [refreshed_token]
+
+
+def test_on_token_update_fires_on_resume_login(
+    monkeypatch: pytest.MonkeyPatch, client: Client
+):
+    mfa_state = MFAState(
+        strategy_name="json-portal",
+        domain="garmin.com",
+        state={
+            "mfa_url": ("https://sso.garmin.com/portal/api/mfa/verifyCode")
+        },
+    )
+    oauth2_token = OAuth2Token(
+        access_token="test_access_token_jwt",
+        refresh_token="test_refresh_token",
+        expires_in=3600,
+        expires_at=time.time() + 3600,
+        refresh_token_expires_in=7200,
+        refresh_token_expires_at=time.time() + 7200,
+    )
+    received: list[OAuth2Token] = []
+    client.configure(on_token_update=received.append)
+
+    monkeypatch.setattr(
+        http_mod.sso,
+        "handle_mfa",
+        lambda *a, **kw: LoginResult(
+            "ST-ticket", "https://sso.garmin.com/sso/embed"
+        ),
+    )
+    monkeypatch.setattr(
+        http_mod.oauth,
+        "exchange_service_ticket",
+        lambda *a, **kw: oauth2_token,
+    )
+
+    client.resume_login(mfa_state, "123456")
+    assert received == [oauth2_token]
+
+
+def test_on_token_update_replaces_dump(garth_home_client, monkeypatch):
+    client, _, mock_oauth2_token = garth_home_client
+    dump_called: list[bool] = []
+    monkeypatch.setattr(
+        client, "dump", lambda *a, **kw: dump_called.append(True)
+    )
+    received: list[OAuth2Token] = []
+    client.configure(on_token_update=received.append)
+
+    monkeypatch.setattr(
+        http_mod.sso,
+        "login",
+        lambda *a, **kw: LoginResult(
+            "ST-ticket", "https://sso.garmin.com/sso/embed"
+        ),
+    )
+    monkeypatch.setattr(
+        http_mod.oauth,
+        "exchange_service_ticket",
+        lambda *a, **kw: mock_oauth2_token,
+    )
+
+    client.login("user@example.com", "password")
+    assert received == [mock_oauth2_token]
+    assert not dump_called
+
+
+def test_on_token_update_fires_without_garth_home(
+    monkeypatch: pytest.MonkeyPatch, client: Client
+):
+    assert client._garth_home is None
+    oauth2_token = OAuth2Token(
+        access_token="test_access_token_jwt",
+        refresh_token="test_refresh_token",
+        expires_in=3600,
+        expires_at=time.time() + 3600,
+    )
+    received: list[OAuth2Token] = []
+    client.configure(on_token_update=received.append)
+
+    monkeypatch.setattr(
+        http_mod.sso,
+        "login",
+        lambda *a, **kw: LoginResult(
+            "ST-ticket", "https://sso.garmin.com/sso/embed"
+        ),
+    )
+    monkeypatch.setattr(
+        http_mod.oauth,
+        "exchange_service_ticket",
+        lambda *a, **kw: oauth2_token,
+    )
+
+    client.login("user@example.com", "password")
+    assert received == [oauth2_token]
+
+
+def test_on_token_update_exception_propagates(
+    monkeypatch: pytest.MonkeyPatch, client: Client
+):
+    client.oauth2_token = OAuth2Token(
+        access_token="access-old",
+        refresh_token="refresh-old",
+        expires_in=3600,
+        expires_at=time.time() - 1,
+        refresh_token_expires_in=7200,
+        refresh_token_expires_at=time.time() + 7200,
+    )
+    refreshed_token = OAuth2Token(
+        access_token="access-new",
+        refresh_token="refresh-new",
+        expires_in=3600,
+        expires_at=time.time() + 3600,
+    )
+    monkeypatch.setattr(
+        http_mod.oauth,
+        "refresh_oauth2_token",
+        lambda *a, **kw: refreshed_token,
+    )
+
+    def boom(token: OAuth2Token):
+        raise ValueError("callback failed")
+
+    client.configure(on_token_update=boom)
+
+    with pytest.raises(ValueError, match="callback failed"):
+        client.refresh_token()
+
+
+def test_on_token_update_not_called_on_load(
+    oauth2_token: OAuth2Token,
+):
+    with tempfile.TemporaryDirectory() as tmpdir:
+        client = Client()
+        client.oauth2_token = oauth2_token
+        client.dump(tmpdir)
+
+        received: list[OAuth2Token] = []
+        new_client = Client()
+        new_client.configure(on_token_update=received.append)
+        new_client.load(tmpdir)
+
+        assert new_client.oauth2_token == oauth2_token
+        assert not received
+
+
+def test_default_on_token_update_is_noop(monkeypatch: pytest.MonkeyPatch):
+    monkeypatch.delenv("GARTH_HOME", raising=False)
+    monkeypatch.delenv("GARTH_TOKEN", raising=False)
+    client = Client()
+    mock_token = OAuth2Token(
+        access_token="test",
+        refresh_token="refresh",
+        expires_in=3600,
+        expires_at=time.time() + 3600,
+    )
+    # Default callback should be callable and not raise
+    client._on_token_update(mock_token)  # Must not raise
+    assert callable(client._on_token_update)
+
+
+def test_auto_resume_sets_dump_callback(monkeypatch: pytest.MonkeyPatch):
+    with tempfile.TemporaryDirectory() as tempdir:
+        monkeypatch.setenv("GARTH_HOME", tempdir)
+        monkeypatch.delenv("GARTH_TOKEN", raising=False)
+        client = Client()
+        mock_token = OAuth2Token(
+            access_token="test",
+            refresh_token="refresh",
+            expires_in=3600,
+            expires_at=time.time() + 3600,
+        )
+        client.oauth2_token = mock_token
+        # Calling the callback should dump the token to disk
+        client._on_token_update(mock_token)
+        _assert_oauth2_token_saved(tempdir, mock_token)
+
+
+def test_configure_resets_to_dump_to_home(garth_home_client, monkeypatch):
+    client, tempdir, mock_oauth2_token = garth_home_client
+    received: list[OAuth2Token] = []
+    client.configure(on_token_update=received.append)
+    client._on_token_update(mock_oauth2_token)
+    assert received == [mock_oauth2_token]
+    received.clear()
+
+    client.configure(on_token_update=client.dump_to_home)
+    client.oauth2_token = mock_oauth2_token
+    client._on_token_update(mock_oauth2_token)
+
+    _assert_oauth2_token_saved(tempdir, mock_oauth2_token)
+
+
+def test_configure_resets_to_dump_to_home_noop(
+    monkeypatch: pytest.MonkeyPatch, client: Client
+):
+    assert client._garth_home is None
+    received: list[OAuth2Token] = []
+    client.configure(on_token_update=received.append)
+
+    client.configure(on_token_update=client.dump_to_home)
+    mock_token = OAuth2Token(
+        access_token="test",
+        refresh_token="refresh",
+        expires_in=3600,
+        expires_at=time.time() + 3600,
+    )
+    client._on_token_update(mock_token)
+    assert not received
+    assert callable(client._on_token_update)
+
+
+def test_configure_none_disables_callback(
+    garth_home_client, monkeypatch: pytest.MonkeyPatch
+):
+    client, tempdir, mock_oauth2_token = garth_home_client
+    # _auto_resume set dump_to_home because GARTH_HOME exists
+    # Verify dump is initially active
+    client.oauth2_token = mock_oauth2_token
+    client._on_token_update(mock_oauth2_token)
+    _assert_oauth2_token_saved(tempdir, mock_oauth2_token)
+
+    # Clear saved token for next test
+    import os as os_module
+
+    oauth2_path = os_module.path.join(
+        os_module.path.expanduser(tempdir), "oauth2_token.json"
+    )
+    if os_module.path.exists(oauth2_path):
+        os_module.remove(oauth2_path)
+
+    # Disable via None
+    client.configure(on_token_update=None)
+    assert callable(client._on_token_update)
+
+    # Override to custom callback
+    received: list[OAuth2Token] = []
+    client.configure(on_token_update=received.append)
+    # Disable again with None
+    client.configure(on_token_update=None)
+    client._on_token_update(mock_oauth2_token)
+    # Should not have called the custom callback
+    assert not received
+    assert callable(client._on_token_update)
