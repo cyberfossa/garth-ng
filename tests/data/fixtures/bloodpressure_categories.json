@@ -1,0 +1,112 @@
+{
+  "countryMeasurementCategories": [
+    {
+      "countryCodes": [
+        "US"
+      ],
+      "measurementCategories": [
+        {
+          "category": "HYPERTENSIVE_CRISIS",
+          "systolic": {
+            "min": 181,
+            "max": 300
+          },
+          "diastolic": {
+            "min": 121,
+            "max": 200
+          }
+        },
+        {
+          "category": "STAGE_2_HIGH",
+          "systolic": {
+            "min": 140,
+            "max": 180
+          },
+          "diastolic": {
+            "min": 90,
+            "max": 120
+          }
+        },
+        {
+          "category": "STAGE_1_HIGH",
+          "systolic": {
+            "min": 130,
+            "max": 139
+          },
+          "diastolic": {
+            "min": 80,
+            "max": 89
+          }
+        },
+        {
+          "category": "ELEVATED",
+          "systolic": {
+            "min": 120,
+            "max": 129
+          },
+          "diastolic": {
+            "min": 0,
+            "max": 79
+          }
+        },
+        {
+          "category": "NORMAL",
+          "systolic": {
+            "min": 40,
+            "max": 119
+          },
+          "diastolic": {
+            "min": 30,
+            "max": 79
+          }
+        }
+      ]
+    }
+  ],
+  "defaultMeasurementCategories": [
+    {
+      "category": "GRADE_2",
+      "systolic": {
+        "min": 160,
+        "max": 300
+      },
+      "diastolic": {
+        "min": 100,
+        "max": 200
+      }
+    },
+    {
+      "category": "GRADE_1",
+      "systolic": {
+        "min": 140,
+        "max": 159
+      },
+      "diastolic": {
+        "min": 90,
+        "max": 99
+      }
+    },
+    {
+      "category": "HIGH_NORMAL",
+      "systolic": {
+        "min": 130,
+        "max": 139
+      },
+      "diastolic": {
+        "min": 85,
+        "max": 89
+      }
+    },
+    {
+      "category": "NORMAL",
+      "systolic": {
+        "min": 40,
+        "max": 129
+      },
+      "diastolic": {
+        "min": 30,
+        "max": 84
+      }
+    }
+  ]
+}

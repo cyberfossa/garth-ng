@@ -11,7 +11,85 @@ from ..utils import camel_to_snake_dict, remove_dto_suffix_from_dict
 
 
 @dataclass
+class ActivityDetails:
+    """Detailed activity metrics and chart data."""
+
+    activity_id: int | None = None
+    measurement_count: int | None = None
+    metrics_count: int | None = None
+    total_metrics_count: int | None = None
+    metric_descriptors: list[object] | None = None
+    activity_detail_metrics: list[object] | None = None
+    geo_polyline_dto: object | None = None
+    heart_rate_dt_os: list[object] | None = None
+    pending_data: object | None = None
+    details_available: bool | None = None
+
+
+@dataclass
+class ExerciseSets:
+    """Exercise sets data for a strength/interval activity."""
+
+    activity_id: int | None = None
+    exercise_sets: list[object] | None = None
+
+
+@dataclass
+class HrTimeInZone:
+    """Heart rate time spent in a specific zone."""
+
+    zone_number: int | None = None
+    seconds_in_zone: int | None = None
+    zone_low_boundary: int | None = None
+    zone_high_boundary: int | None = None
+
+
+@dataclass
+class GPolyline:
+    """GPS polyline summary for an activity map."""
+
+    number_of_points: int | None = None
+    activity_id: int | None = None
+
+
+@dataclass
+class ActivityMapDetails:
+    """Map and heatmap data for an activity."""
+
+    activity_heat_map_dto: object | None = None
+    g_polyline: GPolyline | None = None
+
+
+@dataclass
+class ActivityUUID:
+    """Activity UUID wrapper."""
+
+    uuid: str | None = None
+
+
+@dataclass
+class ActivityRounds:
+    """Activity rounds/laps data."""
+
+    activity_id: int | None = None
+    activity_uuid: ActivityUUID | None = None
+    rounds: list[object] | None = None
+
+
+@dataclass
+class ActivityWorkout:
+    """Workout metadata associated with an activity."""
+
+    workout_id: int | None = None
+    owner_id: int | None = None
+    sport_type: object | None = None
+    workout_name: str | None = None
+
+
+@dataclass
 class ActivityType:
+    """Activity type classification."""
+
     type_id: int
     type_key: str
     parent_type_id: int | None = None
@@ -22,6 +100,8 @@ class ActivityType:
 
 @dataclass
 class EventType:
+    """Event type classification."""
+
     type_id: int
     type_key: str
     sort_order: int | None = None
@@ -235,3 +315,177 @@ class Activity:
             payload["description"] = description
         path = f"/activity-service/activity/{activity_id}"
         client.connectapi(path, method="PUT", json=payload)
+
+    @classmethod
+    def details(
+        cls,
+        activity_id: int,
+        *,
+        max_chart_size: int = 1400,
+        client: http.Client | None = None,
+    ) -> ActivityDetails:
+        """Get detailed activity metrics.
+
+        Args:
+            activity_id: The Garmin activity ID
+            max_chart_size: Maximum chart data points (default 1400)
+            client: Optional HTTP client (uses default if not provided)
+
+        Returns:
+            ActivityDetails with metrics and chart data
+        """
+        client = client or http.client
+        path = (
+            f"/activity-service/activity/{activity_id}"
+            f"/details?maxChartSize={max_chart_size}"
+        )
+        data = client.connectapi(path)
+        assert isinstance(data, dict), (
+            f"Expected dict from {path}, got {type(data).__name__}"
+        )
+        data = camel_to_snake_dict(data)
+        return ActivityDetails(**data)
+
+    @classmethod
+    def exercise_sets(
+        cls,
+        activity_id: int,
+        *,
+        client: http.Client | None = None,
+    ) -> ExerciseSets:
+        """Get exercise sets for a strength or interval activity.
+
+        Args:
+            activity_id: The Garmin activity ID
+            client: Optional HTTP client (uses default if not provided)
+
+        Returns:
+            ExerciseSets data for the activity
+        """
+        client = client or http.client
+        path = f"/activity-service/activity/{activity_id}/exerciseSets"
+        data = client.connectapi(path)
+        assert isinstance(data, dict), (
+            f"Expected dict from {path}, got {type(data).__name__}"
+        )
+        data = camel_to_snake_dict(data)
+        return ExerciseSets(**data)
+
+    @classmethod
+    def hr_time_in_zones(
+        cls,
+        activity_id: int,
+        *,
+        client: http.Client | None = None,
+    ) -> builtins.list[HrTimeInZone]:
+        """Get time spent in each heart rate zone.
+
+        Args:
+            activity_id: The Garmin activity ID
+            client: Optional HTTP client (uses default if not provided)
+
+        Returns:
+            List of HrTimeInZone data for each HR zone
+        """
+        client = client or http.client
+        path = f"/activity-service/activity/{activity_id}/hrTimeInZones"
+        data = client.connectapi(path)
+        assert isinstance(data, list), (
+            f"Expected list from {path}, got {type(data).__name__}"
+        )
+        return [HrTimeInZone(**camel_to_snake_dict(item)) for item in data]
+
+    @classmethod
+    def map_details(
+        cls,
+        activity_id: int,
+        *,
+        client: http.Client | None = None,
+    ) -> ActivityMapDetails:
+        """Get GPS map and heatmap data for an activity.
+
+        Args:
+            activity_id: The Garmin activity ID
+            client: Optional HTTP client (uses default if not provided)
+
+        Returns:
+            ActivityMapDetails with polyline and heatmap data
+        """
+        client = client or http.client
+        path = f"/activity-service/activity/{activity_id}/details/mapdetails"
+        data = client.connectapi(path)
+        assert isinstance(data, dict), (
+            f"Expected dict from {path}, got {type(data).__name__}"
+        )
+        data = camel_to_snake_dict(data)
+        return ActivityMapDetails(**data)
+
+    @classmethod
+    def rounds(
+        cls,
+        activity_id: int,
+        *,
+        client: http.Client | None = None,
+    ) -> ActivityRounds:
+        """Get rounds/laps data for an activity.
+
+        Args:
+            activity_id: The Garmin activity ID
+            client: Optional HTTP client (uses default if not provided)
+
+        Returns:
+            ActivityRounds with lap and round data
+        """
+        client = client or http.client
+        path = f"/activity-service/activity/{activity_id}/rounds"
+        data = client.connectapi(path)
+        assert isinstance(data, dict), (
+            f"Expected dict from {path}, got {type(data).__name__}"
+        )
+        data = camel_to_snake_dict(data)
+        return ActivityRounds(**data)
+
+    @classmethod
+    def workouts(
+        cls,
+        activity_id: int,
+        *,
+        client: http.Client | None = None,
+    ) -> builtins.list[ActivityWorkout]:
+        """Get workouts associated with an activity.
+
+        Args:
+            activity_id: The Garmin activity ID
+            client: Optional HTTP client (uses default if not provided)
+
+        Returns:
+            List of ActivityWorkout data
+        """
+        client = client or http.client
+        path = f"/activity-service/activity/{activity_id}/workouts"
+        data = client.connectapi(path)
+        assert isinstance(data, list), (
+            f"Expected list from {path}, got {type(data).__name__}"
+        )
+        return [ActivityWorkout(**camel_to_snake_dict(item)) for item in data]
+
+    @staticmethod
+    def activity_types(
+        *,
+        client: http.Client | None = None,
+    ) -> builtins.list[ActivityType]:
+        """List all available activity types.
+
+        Args:
+            client: Optional HTTP client (uses default if not provided)
+
+        Returns:
+            List of all ActivityType definitions
+        """
+        client = client or http.client
+        path = "/activity-service/activity/activityTypes"
+        data = client.connectapi(path)
+        assert isinstance(data, list), (
+            f"Expected list from {path}, got {type(data).__name__}"
+        )
+        return [ActivityType(**camel_to_snake_dict(item)) for item in data]

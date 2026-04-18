@@ -1,0 +1,16 @@
+{
+  "date": 1775438372440,
+  "version": 1775431188909,
+  "weight": 907.0,
+  "bmi": null,
+  "bodyFat": null,
+  "bodyWater": null,
+  "boneMass": null,
+  "muscleMass": null,
+  "physiqueRating": null,
+  "visceralFat": null,
+  "metabolicAge": null,
+  "caloricIntake": null,
+  "sourceType": "MANUAL",
+  "timestampGMT": 1775431172440
+}
