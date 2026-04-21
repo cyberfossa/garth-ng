@@ -1,4 +1,5 @@
 import base64
+import dataclasses
 import json
 import os
 import time as _time
@@ -16,8 +17,8 @@ from . import oauth, sso
 from .auth_tokens import OAuth2Token
 from .exc import GarthException, GarthHTTPError, MFARequiredError
 from .sso.state import MFAState
+from .sso.strategy import LoginResult
 from .telemetry import Telemetry
-from .utils import asdict
 
 
 USER_AGENT = {"User-Agent": "GCM-iOS-5.22.1.4"}
@@ -293,14 +294,7 @@ class Client:
             if e.state is None:
                 raise GarthException(msg="MFA required but state is missing")
             result = sso.handle_mfa(self.session, e.state, mfa_code)
-        self.oauth2_token = oauth.exchange_service_ticket(
-            self.session,
-            result.ticket,
-            result.service_url,
-        )
-        if self._garth_home:
-            self.dump(self._garth_home)
-        return self.oauth2_token
+        return self._complete_auth(result)
 
     def resume_login(self, mfa_state: MFAState, mfa_code: str) -> OAuth2Token:
         """Complete MFA challenge after receiving code from user.
@@ -316,6 +310,20 @@ class Client:
             GarthException: MFA validation failed.
         """
         result = sso.handle_mfa(self.session, mfa_state, mfa_code)
+        return self._complete_auth(result)
+
+    def _complete_auth(self, result: LoginResult) -> OAuth2Token:
+        """Complete auth by exchanging service ticket for OAuth2 token.
+
+        Private method shared by login() and resume_login() to avoid
+        duplication.
+
+        Args:
+            result: LoginResult with service ticket and URL.
+
+        Returns:
+            OAuth2Token after successful exchange.
+        """
         self.oauth2_token = oauth.exchange_service_ticket(
             self.session,
             result.ticket,
@@ -386,7 +394,7 @@ class Client:
         os.makedirs(dir_path, exist_ok=True)
         if self.oauth2_token:
             with open(os.path.join(dir_path, OAUTH2_TOKEN_FILE), "w") as f:
-                json.dump(asdict(self.oauth2_token), f, indent=4)
+                json.dump(dataclasses.asdict(self.oauth2_token), f, indent=4)
 
     def dumps(self) -> str:
         """Serialize OAuth2 token to a base64-encoded string.
@@ -398,7 +406,7 @@ class Client:
             GarthException: No OAuth2Token available.
         """
         if self.oauth2_token:
-            r = [asdict(self.oauth2_token)]
+            r = [dataclasses.asdict(self.oauth2_token)]
             s = json.dumps(r)
             return base64.b64encode(s.encode()).decode()
 
