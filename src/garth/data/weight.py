@@ -104,6 +104,26 @@ class WeightData(Data):
         return sorted(weight_data_list, key=lambda d: d.datetime_utc)
 
     @classmethod
+    def latest(
+        cls,
+        day: date | str | None = None,
+        *,
+        client: http.Client | None = None,
+    ) -> Self | None:
+        client = client or http.client
+        path = "/weight-service/weight/latest"
+        params: dict[str, str] = {"ignorePriority": "true"}
+        if day is not None:
+            params["date"] = str(format_end_date(day))
+        data = client.connectapi(path, params=params)
+        if not data:
+            return None
+        assert isinstance(data, dict), (
+            f"Expected dict from {path}, got {type(data).__name__}"
+        )
+        return cls(**camel_to_snake_dict(data))
+
+    @classmethod
     def create(
         cls,
         weight: float,
