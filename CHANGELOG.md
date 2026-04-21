@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.1.1-alpha](https://github.com/cyberfossa/garth-ng/compare/v1.1.0...v1.1.1-alpha) (2026-04-21)
+
+
+### Refactoring
+
+* **auth:** remove legacy OAuth1 token detection ([#34](https://github.com/cyberfossa/garth-ng/issues/34)) ([fff2b42](https://github.com/cyberfossa/garth-ng/commit/fff2b423651b9e14eb14e332d9d9bc406e83ce7d))
+
 ## [1.1.0](https://github.com/cyberfossa/garth-ng/compare/v1.0.0...v1.1.0) (2026-04-12)
 
 
