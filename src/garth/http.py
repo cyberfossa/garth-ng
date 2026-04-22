@@ -72,7 +72,7 @@ class Client:
     telemetry: Telemetry
 
     @staticmethod
-    def _noop_token_callback(_: OAuth2Token) -> None:
+    def noop_token_callback(_: OAuth2Token) -> None:
         pass
 
     def dump_to_home(self, _: OAuth2Token) -> None:
@@ -94,7 +94,7 @@ class Client:
         )
         self.session.headers.update(USER_AGENT)
         self.telemetry = Telemetry()
-        self._on_token_update = self._noop_token_callback
+        self._on_token_update = self.noop_token_callback
         self._auto_resume()
         self.configure(
             timeout=self.timeout,
@@ -105,6 +105,13 @@ class Client:
         )
         if self.telemetry.enabled:
             print(f"Garth session: {self.telemetry.session_id}")
+
+    def _is_default_callback(self) -> bool:
+        """Check if current callback is a default (noop or dump_to_home)."""
+        cb = self._on_token_update
+        if cb is self.noop_token_callback:
+            return True
+        return getattr(cb, "__func__", None) is Client.dump_to_home
 
     def configure(
         self,
@@ -133,12 +140,17 @@ class Client:
         Args:
             on_token_update: Callback invoked after every successful login and
                 token refresh, receiving the fresh ``OAuth2Token``. Replaces
-                ``GARTH_HOME`` auto-dump when set. Pass ``None`` to disable
-                auto-persistence (noop). To restore file persistence, pass
-                ``client.dump_to_home``.
+                ``GARTH_HOME`` auto-dump when set. Pass ``None`` to restore
+                default persistence (``client.dump_to_home`` if
+                ``garth_home`` is set, ``client.noop_token_callback``
+                otherwise). Pass ``client.noop_token_callback`` to explicitly
+                disable persistence.
             garth_home: Home directory for token persistence. When set and
-                ``on_token_update`` is not explicitly provided, callback is set
-                to ``client.dump_to_home``. Pass ``None`` to clear.
+                ``on_token_update`` is not explicitly provided, callback is
+                auto-updated only when current callback is one of the defaults
+                (``client.noop_token_callback`` or
+                ``client.dump_to_home``). Custom callbacks are preserved.
+                Pass ``None`` to clear.
         """
         if oauth2_token is not None:
             self.oauth2_token = oauth2_token
@@ -158,18 +170,22 @@ class Client:
             self.backoff_factor = backoff_factor
         if on_token_update is not _UNSET:
             if on_token_update is None:
-                self._on_token_update = self._noop_token_callback
+                if self._garth_home:
+                    self._on_token_update = self.dump_to_home
+                else:
+                    self._on_token_update = self.noop_token_callback
             else:
                 self._on_token_update = cast(
                     Callable[[OAuth2Token], None], on_token_update
                 )
         if not isinstance(garth_home, _Unset):
             self._garth_home = garth_home
-            if isinstance(on_token_update, _Unset):
-                if garth_home is not None:
+            if isinstance(on_token_update, _Unset) and garth_home is not None:
+                if self._is_default_callback():
                     self._on_token_update = self.dump_to_home
-                else:
-                    self._on_token_update = self._noop_token_callback
+            elif isinstance(on_token_update, _Unset) and garth_home is None:
+                if self._is_default_callback():
+                    self._on_token_update = self.noop_token_callback
 
         self.telemetry.configure(
             enabled=telemetry_enabled,
@@ -472,7 +488,7 @@ class Client:
             with open(oauth2_path) as f:
                 self.oauth2_token = OAuth2Token(**json.load(f))
             self._garth_home = dir_path
-            if self._on_token_update is self._noop_token_callback:
+            if self._on_token_update is self.noop_token_callback:
                 self._on_token_update = self.dump_to_home
         else:
             raise GarthException(

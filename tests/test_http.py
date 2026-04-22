@@ -1021,45 +1021,58 @@ def test_configure_resets_to_dump_to_home_noop(
     assert callable(client._on_token_update)
 
 
-def test_configure_none_disables_callback(
+def test_configure_none_restores_default_callback(
     garth_home_client, monkeypatch: pytest.MonkeyPatch
 ):
     client, tempdir, mock_oauth2_token = garth_home_client
-    # _auto_resume set dump_to_home because GARTH_HOME exists
-    # Verify dump is initially active
-    client.oauth2_token = mock_oauth2_token
-    client._on_token_update(mock_oauth2_token)
-    _assert_oauth2_token_saved(tempdir, mock_oauth2_token)
-
-    # Clear saved token for next test
     oauth2_path = os.path.join(
         os.path.expanduser(tempdir), "oauth2_token.json"
     )
+
+    # 1. With _garth_home set: None → dump_to_home (bound method)
+    client.configure(on_token_update=None)
+    assert (
+        getattr(client._on_token_update, "__func__", None)
+        is Client.dump_to_home
+    )
+
+    # 2. Without _garth_home: None → noop_token_callback (static)
+    saved_home = client._garth_home
+    client._garth_home = None
+    client.configure(on_token_update=None)
+    assert client._on_token_update is Client.noop_token_callback
+    client._garth_home = saved_home
+
+    # 3. After custom callback: None → restores default (not custom)
+    custom = lambda token: None  # noqa: E731
+    client.configure(on_token_update=custom)
+    assert client._on_token_update is custom
+    client.configure(on_token_update=None)
+    assert client._on_token_update is not custom
+    assert (
+        getattr(client._on_token_update, "__func__", None)
+        is Client.dump_to_home
+    )
+
+    # 4. With _garth_home: callback actually writes file after None reset
+    client.oauth2_token = mock_oauth2_token
     if os.path.exists(oauth2_path):
         os.remove(oauth2_path)
-
-    # Disable via None
-    client.configure(on_token_update=None)
-    assert callable(client._on_token_update)
-
-    # Verify None is truly a noop — no file written
-    client._on_token_update(mock_oauth2_token)
-    assert not os.path.exists(oauth2_path)
-
-    # Override to custom callback
-    received: list[OAuth2Token] = []
-    client.configure(on_token_update=received.append)
-    # Disable again with None
-    client.configure(on_token_update=None)
-    client._on_token_update(mock_oauth2_token)
-    # Should not have called the custom callback
-    assert not received
-    assert callable(client._on_token_update)
-
-    # Restore file persistence via dump_to_home
-    client.configure(on_token_update=client.dump_to_home)
     client._on_token_update(mock_oauth2_token)
     _assert_oauth2_token_saved(tempdir, mock_oauth2_token)
+
+
+def test_configure_noop_disables_callback(garth_home_client):
+    client, tempdir, mock_oauth2_token = garth_home_client
+    client.configure(on_token_update=Client.noop_token_callback)
+    assert client._on_token_update is Client.noop_token_callback
+
+    client._on_token_update(mock_oauth2_token)
+
+    oauth2_path = os.path.join(
+        os.path.expanduser(tempdir), "oauth2_token.json"
+    )
+    assert not os.path.exists(oauth2_path), "noop should not write file"
 
 
 def test_load_sets_persistence_callback(monkeypatch: pytest.MonkeyPatch):
@@ -1226,7 +1239,28 @@ def test_configure_garth_home_none_clears(monkeypatch):
     c.configure(garth_home="/tmp/test-garth")
     c.configure(garth_home=None)
     assert c._garth_home is None
-    assert c._on_token_update == c._noop_token_callback
+    assert c._on_token_update is Client.noop_token_callback
+
+
+def test_configure_garth_home_preserves_custom_callback(monkeypatch):
+    monkeypatch.delenv("GARTH_HOME", raising=False)
+    monkeypatch.delenv("GARTH_TOKEN", raising=False)
+    c = Client()
+    custom_calls: list = []
+    custom = lambda token: custom_calls.append(token)  # noqa: E731
+    c.configure(on_token_update=custom)
+
+    c.configure(garth_home="/new/path")
+    assert c._on_token_update is custom
+
+
+def test_configure_garth_home_updates_default_callback(monkeypatch):
+    monkeypatch.delenv("GARTH_HOME", raising=False)
+    monkeypatch.delenv("GARTH_TOKEN", raising=False)
+    c = Client()
+    assert c._on_token_update is Client.noop_token_callback
+    c.configure(garth_home="/some/path")
+    assert getattr(c._on_token_update, "__func__", None) is Client.dump_to_home
 
 
 def test_load_no_arg_uses_garth_home(monkeypatch, tmp_path):

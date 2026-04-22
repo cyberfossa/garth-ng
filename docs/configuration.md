@@ -73,7 +73,7 @@ refresh. Use this instead of `GARTH_HOME` when you need custom storage
 
 ```python
 def persist_token(token: OAuth2Token) -> None:
-    redis.set("garth:token", token.to_dict())
+    redis.set("garth:token", client.dumps())
 
 garth.configure(on_token_update=persist_token)
 ```
@@ -85,9 +85,14 @@ refresh. It **replaces** the automatic file dump — when a callback is set,
 To revert to the default persistence behavior:
 
 ```python
-garth.configure(
-    on_token_update=garth.client.dump_to_home
-)
+# Restore default persistence (Variant D semantics)
+garth.configure(on_token_update=None)
+
+# Or explicitly enable file dump:
+garth.configure(on_token_update=garth.client.dump_to_home)
+
+# To explicitly disable persistence:
+garth.configure(on_token_update=garth.client.noop_token_callback)
 ```
 
 !!! warning "Exception handling"
