@@ -26,6 +26,15 @@ OAUTH2_TOKEN_FILE = "oauth2_token.json"
 _SUPPORTED_METHODS: frozenset[str] = frozenset(get_args(HttpMethod))
 
 
+class _Unset:
+    """Sentinel for unset parameters."""
+
+    __slots__ = ()
+
+
+_UNSET = _Unset()
+
+
 class GarthSettings(BaseSettings):
     model_config = SettingsConfigDict(env_prefix="GARTH_")
 
@@ -59,7 +68,16 @@ class Client:
     backoff_factor: float = 0.5
     _user_profile: dict[str, Any] | None = None
     _garth_home: str | None = None
+    _on_token_update: Callable[[OAuth2Token], None]
     telemetry: Telemetry
+
+    @staticmethod
+    def noop_token_callback(_: OAuth2Token) -> None:
+        pass
+
+    def dump_to_home(self, _: OAuth2Token) -> None:
+        if self._garth_home:
+            self.dump(self._garth_home)
 
     def __init__(self, session: Session | None = None, **kwargs):
         """Initialize a new Client instance.
@@ -76,6 +94,7 @@ class Client:
         )
         self.session.headers.update(USER_AGENT)
         self.telemetry = Telemetry()
+        self._on_token_update = self.noop_token_callback
         self._auto_resume()
         self.configure(
             timeout=self.timeout,
@@ -86,6 +105,13 @@ class Client:
         )
         if self.telemetry.enabled:
             print(f"Garth session: {self.telemetry.session_id}")
+
+    def _is_default_callback(self) -> bool:
+        """Check if current callback is a default (noop or dump_to_home)."""
+        cb = self._on_token_update
+        if cb is self.noop_token_callback:
+            return True
+        return getattr(cb, "__func__", None) is Client.dump_to_home
 
     def configure(
         self,
@@ -102,10 +128,29 @@ class Client:
         telemetry_send_to_logfire: bool | None = None,
         telemetry_token: str | None = None,
         telemetry_callback: Callable[[dict[str, Any]], None] | None = None,
+        on_token_update: Callable[[OAuth2Token], None]
+        | _Unset
+        | None = _UNSET,
+        garth_home: str | _Unset | None = _UNSET,
     ):
         """Configure HTTP client and telemetry settings.
 
         All parameters are optional — only provided values are applied.
+
+        Args:
+            on_token_update: Callback invoked after every successful login and
+                token refresh, receiving the fresh ``OAuth2Token``. Replaces
+                ``GARTH_HOME`` auto-dump when set. Pass ``None`` to restore
+                default persistence (``client.dump_to_home`` if
+                ``garth_home`` is set, ``client.noop_token_callback``
+                otherwise). Pass ``client.noop_token_callback`` to explicitly
+                disable persistence.
+            garth_home: Home directory for token persistence. When set and
+                ``on_token_update`` is not explicitly provided, callback is
+                auto-updated only when current callback is one of the defaults
+                (``client.noop_token_callback`` or
+                ``client.dump_to_home``). Custom callbacks are preserved.
+                Pass ``None`` to clear.
         """
         if oauth2_token is not None:
             self.oauth2_token = oauth2_token
@@ -123,6 +168,24 @@ class Client:
             self.status_forcelist = status_forcelist
         if backoff_factor is not None:
             self.backoff_factor = backoff_factor
+        if on_token_update is not _UNSET:
+            if on_token_update is None:
+                if self._garth_home:
+                    self._on_token_update = self.dump_to_home
+                else:
+                    self._on_token_update = self.noop_token_callback
+            else:
+                self._on_token_update = cast(
+                    Callable[[OAuth2Token], None], on_token_update
+                )
+        if not isinstance(garth_home, _Unset):
+            self._garth_home = garth_home
+            if isinstance(on_token_update, _Unset) and garth_home is not None:
+                if self._is_default_callback():
+                    self._on_token_update = self.dump_to_home
+            elif isinstance(on_token_update, _Unset) and garth_home is None:
+                if self._is_default_callback():
+                    self._on_token_update = self.noop_token_callback
 
         self.telemetry.configure(
             enabled=telemetry_enabled,
@@ -136,6 +199,7 @@ class Client:
         settings = GarthSettings()
         if settings.home:
             self._garth_home = settings.home
+            self._on_token_update = self.dump_to_home
             oauth2_token_path = os.path.join(
                 os.path.expanduser(settings.home), OAUTH2_TOKEN_FILE
             )
@@ -298,8 +362,7 @@ class Client:
             result.ticket,
             result.service_url,
         )
-        if self._garth_home:
-            self.dump(self._garth_home)
+        self._on_token_update(self.oauth2_token)
         return self.oauth2_token
 
     def resume_login(self, mfa_state: MFAState, mfa_code: str) -> OAuth2Token:
@@ -321,8 +384,7 @@ class Client:
             result.ticket,
             result.service_url,
         )
-        if self._garth_home:
-            self.dump(self._garth_home)
+        self._on_token_update(self.oauth2_token)
         return self.oauth2_token
 
     def refresh_token(self):
@@ -338,8 +400,7 @@ class Client:
         self.oauth2_token = oauth.refresh_oauth2_token(
             self.session, self.oauth2_token
         )
-        if self._garth_home:
-            self.dump(self._garth_home)
+        self._on_token_update(self.oauth2_token)
 
     def connectapi(
         self, path: str, method="GET", **kwargs
@@ -404,7 +465,7 @@ class Client:
 
         raise GarthException(msg="No OAuth2Token available to serialize")
 
-    def load(self, dir_path: str):
+    def load(self, dir_path: str | None = None):
         """Load OAuth2 token from dir_path/oauth2_token.json.
 
         Args:
@@ -413,12 +474,22 @@ class Client:
         Raises:
             GarthException: Token not found.
         """
+        if dir_path is None:
+            dir_path = self._garth_home
+            if dir_path is None:
+                raise GarthException(
+                    msg=("No dir_path provided and garth_home not configured")
+                )
+
         dir_path = os.path.expanduser(dir_path)
         oauth2_path = os.path.join(dir_path, OAUTH2_TOKEN_FILE)
 
         if os.path.exists(oauth2_path):
             with open(oauth2_path) as f:
                 self.oauth2_token = OAuth2Token(**json.load(f))
+            self._garth_home = dir_path
+            if self._on_token_update is self.noop_token_callback:
+                self._on_token_update = self.dump_to_home
         else:
             raise GarthException(
                 msg=(

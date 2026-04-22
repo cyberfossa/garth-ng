@@ -34,7 +34,8 @@ login() ──────────────────► OAuth2Token
 !!! tip "Auto-persist on refresh"
     When `GARTH_HOME` is set (either as an environment variable or via a previous
     `save()` call), the refreshed token is automatically written back to disk.
-    Your session stays current without any extra code.
+    Your session stays current without any extra code. For custom storage backends,
+    use the [`on_token_update` callback](#on_token_update-callback) instead.
 
 ## Token Persistence
 
@@ -152,8 +153,9 @@ SleepData.list(days=3, client=client)
 ### Persisting refreshed tokens
 
 Unlike `GARTH_HOME` (which auto-persists to disk), database-backed tokens
-require manual persistence after each API call — the token may have been
-silently refreshed:
+require explicit persistence after each API call, because the access token may
+have been silently refreshed during the call. The straightforward approach is
+to call `dumps()` after every request:
 
 ```python
 def fetch_for_user(user_id: str, path: str):
@@ -164,6 +166,53 @@ def fetch_for_user(user_id: str, path: str):
     db.set(f"users/{user_id}/garth_token", client.dumps())
     return result
 ```
+
+### on_token_update callback
+
+For production use, register a callback instead of calling `dumps()` manually.
+The callback fires automatically after login and every token refresh — you
+don't have to remember to persist:
+
+```python
+def save_token(token: OAuth2Token) -> None:
+    db.set(f"users/{user_id}/garth_token", client.dumps())
+
+client = Client()
+client.configure(on_token_update=save_token)
+client.loads(db.get(f"users/{user_id}/garth_token"))
+
+# Token is automatically persisted after login and every refresh
+result = client.connectapi("/wellness-service/wellness/dailySummary")
+```
+
+The callback receives an `OAuth2Token` — the same object held by the client
+after the operation completes. Its signature is
+`Callable[[OAuth2Token], None]`.
+
+The callback **replaces** the automatic file dump. When one is
+registered, `GARTH_HOME` is ignored for auto-persistence. To revert
+to the default behavior (file dump when `GARTH_HOME` is set, noop
+otherwise):
+
+```python
+# Restore default persistence (Variant D semantics)
+client.configure(on_token_update=None)
+
+# Or explicitly enable file dump:
+client.configure(on_token_update=client.dump_to_home)
+
+# To explicitly disable persistence:
+client.configure(on_token_update=client.noop_token_callback)
+```
+
+For the global singleton, use
+`garth.configure(on_token_update=callback)` to set a custom
+callback, and `on_token_update=None` to revert to default.
+
+!!! warning "Exception handling"
+    If your callback raises an exception, it propagates up through the login or
+    refresh call. Handle errors inside your callback to avoid interrupting the
+    authentication flow.
 
 !!! warning "Thread safety"
     Each `Client` has its own HTTP session, so parallel requests across

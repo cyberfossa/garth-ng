@@ -26,6 +26,7 @@ from garth.cli._helpers import (
 from garth.cli.data import data_app
 from garth.cli.stats import stats_app
 from garth.cli.users import app as users_app
+from garth.exc import GarthException
 
 
 app = typer.Typer(help="Garmin Connect CLI client.")
@@ -54,9 +55,12 @@ def callback(
         ),
     ] = ".garth",
 ) -> None:
-    garth.configure(domain=domain)  # pyright: ignore[reportUnknownMemberType]
-    obj = cast(dict[str, str], ctx.ensure_object(dict))
-    obj["token_dir"] = token_dir
+    garth.configure(domain=domain, garth_home=token_dir)  # pyright: ignore[reportUnknownMemberType]
+    try:
+        garth.resume()  # pyright: ignore[reportUnknownMemberType]
+    except GarthException:
+        pass
+    ctx.ensure_object(dict)
     if ctx.invoked_subcommand is None:
         print(ctx.get_help())
 
@@ -71,8 +75,6 @@ def login(ctx: typer.Context) -> None:
         prompt_mfa=lambda: cast(str, typer.prompt("MFA code")),
     )
     typer.echo(garth.client.dumps())
-    obj = cast(dict[str, str], ctx.obj)
-    garth.save(obj["token_dir"])
 
 
 @app.command()
