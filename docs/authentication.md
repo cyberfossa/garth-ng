@@ -175,7 +175,7 @@ don't have to remember to persist:
 
 ```python
 def save_token(token: OAuth2Token) -> None:
-    db.set(f"users/{user_id}/garth_token", token.to_dict())
+    db.set(f"users/{user_id}/garth_token", client.dumps())
 
 client = Client()
 client.configure(on_token_update=save_token)
@@ -195,12 +195,19 @@ to the default behavior (file dump when `GARTH_HOME` is set, noop
 otherwise):
 
 ```python
+# Restore default persistence (Variant D semantics)
+client.configure(on_token_update=None)
+
+# Or explicitly enable file dump:
 client.configure(on_token_update=client.dump_to_home)
+
+# To explicitly disable persistence:
+client.configure(on_token_update=client.noop_token_callback)
 ```
 
 For the global singleton, use
 `garth.configure(on_token_update=callback)` to set a custom
-callback, and pass `dump_to_home` to revert.
+callback, and `on_token_update=None` to revert to default.
 
 !!! warning "Exception handling"
     If your callback raises an exception, it propagates up through the login or
