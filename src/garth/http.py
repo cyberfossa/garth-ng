@@ -61,8 +61,6 @@ class Client:
     def __init__(
         self,
         session: Session | None = None,
-        *,
-        storage: TokenStorage | None = None,
         **kwargs,
     ):
         """Initialize a new Client instance.
@@ -70,7 +68,6 @@ class Client:
         Args:
             session: Pre-configured curl_cffi Session, or None for
                 default chrome120 session.
-            storage: Token storage backend, or None for memory-only tokens.
             **kwargs: Passed to configure().
         """
         self.session = (
@@ -86,7 +83,6 @@ class Client:
             retries=self.retries,
             status_forcelist=self.status_forcelist,
             backoff_factor=self.backoff_factor,
-            storage=storage,
             **kwargs,
         )
         if self.telemetry.enabled:
