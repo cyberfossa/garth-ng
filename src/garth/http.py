@@ -58,11 +58,7 @@ class Client:
     storage: TokenStorage | None = None
     telemetry: Telemetry
 
-    def __init__(
-        self,
-        session: Session | None = None,
-        **kwargs,
-    ):
+    def __init__(self, session: Session | None = None, **kwargs):
         """Initialize a new Client instance.
 
         Args:
