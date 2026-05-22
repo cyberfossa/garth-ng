@@ -51,8 +51,8 @@ pip install 'garth-ng[cli]'
 import garth
 from getpass import getpass
 
+garth.configure(storage=garth.FileTokenStorage("~/.garth"))
 garth.login(input("Email: "), getpass("Password: "))
-garth.save("~/.garth")
 ```
 
 MFA is handled automatically with a terminal prompt. Pass a custom handler if
@@ -67,7 +67,7 @@ garth.login(email, password, prompt_mfa=lambda: input("MFA code: "))
 ```python
 import garth
 
-garth.resume("~/.garth")
+garth.configure(storage=garth.FileTokenStorage("~/.garth"))
 print(garth.client.username)
 ```
 
