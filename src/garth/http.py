@@ -82,23 +82,14 @@ class Client:
         self.telemetry = Telemetry()
         self.storage = None
         self._auto_resume()
-        if storage is not None:
-            self.configure(
-                timeout=self.timeout,
-                retries=self.retries,
-                status_forcelist=self.status_forcelist,
-                backoff_factor=self.backoff_factor,
-                storage=storage,
-                **kwargs,
-            )
-        else:
-            self.configure(
-                timeout=self.timeout,
-                retries=self.retries,
-                status_forcelist=self.status_forcelist,
-                backoff_factor=self.backoff_factor,
-                **kwargs,
-            )
+        self.configure(
+            timeout=self.timeout,
+            retries=self.retries,
+            status_forcelist=self.status_forcelist,
+            backoff_factor=self.backoff_factor,
+            storage=storage,
+            **kwargs,
+        )
         if self.telemetry.enabled:
             print(f"Garth session: {self.telemetry.session_id}")
 
