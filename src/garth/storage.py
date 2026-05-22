@@ -59,6 +59,12 @@ class FileTokenStorage:
 
 class EnvTokenStorage:
     def save(self, token: OAuth2Token) -> None:
+        """No-op: env vars are read-only at runtime, so refreshed tokens
+        are not persisted.
+
+        This is intentional for CI and container use cases where GARTH_TOKEN
+        provides the initial auth state.
+        """
         _ = token
         return None
 
