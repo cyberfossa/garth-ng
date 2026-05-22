@@ -77,7 +77,10 @@ class Client:
         )
         self.session.headers.update(USER_AGENT)
         self.telemetry = Telemetry()
-        self._auto_resume()
+        if "storage" not in kwargs:
+            default_storage = self._default_storage_from_env()
+            if default_storage is not None:
+                kwargs["storage"] = default_storage
         self.configure(
             timeout=self.timeout,
             retries=self.retries,
@@ -117,7 +120,7 @@ class Client:
         if domain:
             self.domain = domain
         if proxies is not None:
-            self.session.proxies.update(cast(Any, proxies))
+            self.session.proxies.update(proxies.items())
         if ssl_verify is not None:
             self.session.verify = ssl_verify
         if timeout is not None:
@@ -129,7 +132,7 @@ class Client:
         if backoff_factor is not None:
             self.backoff_factor = backoff_factor
         if storage is not None:
-            self.storage = cast(TokenStorage | None, storage)
+            self.storage = storage
             if self.storage is not None:
                 token = self.storage.load()
                 if token is not None:
@@ -142,19 +145,17 @@ class Client:
             callback=telemetry_callback,
         )
 
-    def _auto_resume(self):
-        """Auto-resume session from GARTH_HOME or GARTH_TOKEN env vars."""
+    def _default_storage_from_env(self) -> "TokenStorage | None":
+        """Return default storage from GARTH_HOME/GARTH_TOKEN env vars.
+
+        Returns None when no relevant environment variables are set.
+        """
         settings = GarthSettings()
         if settings.home:
-            self.storage = FileTokenStorage(settings.home)
-            token = self.storage.load()
-            if token:
-                self.oauth2_token = token
+            return FileTokenStorage(settings.home)
         elif settings.token:
-            self.storage = EnvTokenStorage()
-            token = self.storage.load()
-            if token:
-                self.oauth2_token = token
+            return EnvTokenStorage()
+        return None
 
     @property
     def user_profile(self):
