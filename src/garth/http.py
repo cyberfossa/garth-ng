@@ -94,7 +94,6 @@ class Client:
     def configure(
         self,
         /,
-        oauth2_token: OAuth2Token | None = None,
         domain: str | None = None,
         proxies: dict[str, str] | None = None,
         ssl_verify: bool | None = None,
@@ -115,8 +114,6 @@ class Client:
         Args:
             storage: Token storage backend, or None for memory-only tokens.
         """
-        if oauth2_token is not None:
-            self.oauth2_token = oauth2_token
         if domain:
             self.domain = domain
         if proxies is not None:
