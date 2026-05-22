@@ -8,6 +8,7 @@ from unittest.mock import patch
 from typer import Typer
 
 import garth.cli as cli_mod
+from garth.storage import FileTokenStorage
 
 
 def _runner():
@@ -119,7 +120,7 @@ def test_api_post_with_data():
     )
 
 
-def test_api_custom_token_dir(tmp_path):
+def test_api_custom_token_dir(tmp_path: Path):
     runner = _runner()
     token_dir = str(tmp_path / "tokens")
     with (
@@ -134,6 +135,9 @@ def test_api_custom_token_dir(tmp_path):
     mock_configure.assert_called_once()
     call_kwargs = mock_configure.call_args.kwargs
     assert call_kwargs["domain"] == "garmin.com"
+    storage = cast(FileTokenStorage, call_kwargs["storage"])
+    assert isinstance(storage, FileTokenStorage)
+    assert storage.path == Path(token_dir)
 
 
 def test_steps():
