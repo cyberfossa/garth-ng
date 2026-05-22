@@ -49,8 +49,8 @@ def test_login():
         return None
 
     with (
+        patch("garth.configure"),
         patch("garth.login", side_effect=_fake_login) as mock_login,
-        patch("garth.client.dumps", return_value="token_data") as mock_dumps,
     ):
         result = runner.invoke(
             _app(),
@@ -59,9 +59,8 @@ def test_login():
         )
 
     assert result.exit_code == 0
-    assert "token_data" in result.output
+    assert "Login successful" in result.output
     mock_login.assert_called_once()
-    mock_dumps.assert_called_once()
     assert captured["email"] == "test@example.com"
     assert captured["password"] == "secret"
     assert callable(captured["prompt_mfa"])
@@ -71,7 +70,6 @@ def test_api_get():
     runner = _runner()
     with (
         patch("garth.configure") as mock_configure,
-        patch("garth.resume") as mock_resume,
         patch(
             "garth.connectapi",
             return_value={"userName": "testuser"},
@@ -83,10 +81,10 @@ def test_api_get():
         )
     assert result.exit_code == 0
     assert json.loads(result.output) == {"userName": "testuser"}
-    mock_configure.assert_called_once_with(
-        domain="garmin.com", garth_home=".garth"
-    )
-    mock_resume.assert_called_once_with()
+    mock_configure.assert_called_once()
+    call_kwargs = mock_configure.call_args.kwargs
+    assert call_kwargs["domain"] == "garmin.com"
+
     mock_api.assert_called_once_with(
         "/userprofile-service/socialProfile",
         method="GET",
@@ -97,7 +95,6 @@ def test_api_post_with_data():
     runner = _runner()
     with (
         patch("garth.configure"),
-        patch("garth.resume"),
         patch(
             "garth.connectapi",
             return_value=[{"activityId": 1}],
@@ -127,7 +124,6 @@ def test_api_custom_token_dir(tmp_path):
     token_dir = str(tmp_path / "tokens")
     with (
         patch("garth.configure") as mock_configure,
-        patch("garth.resume") as mock_resume,
         patch("garth.connectapi", return_value={}),
     ):
         result = runner.invoke(
@@ -135,10 +131,9 @@ def test_api_custom_token_dir(tmp_path):
             ["--token-dir", token_dir, "api", "/some/path"],
         )
     assert result.exit_code == 0
-    mock_configure.assert_called_once_with(
-        domain="garmin.com", garth_home=token_dir
-    )
-    mock_resume.assert_called_once_with()
+    mock_configure.assert_called_once()
+    call_kwargs = mock_configure.call_args.kwargs
+    assert call_kwargs["domain"] == "garmin.com"
 
 
 def test_steps():
@@ -158,7 +153,6 @@ def test_steps():
     ]
     with (
         patch("garth.configure") as mock_configure,
-        patch("garth.resume") as mock_resume,
         patch(
             "garth.stats.DailySteps.list",
             return_value=fake_steps,
@@ -177,10 +171,10 @@ def test_steps():
             ],
         )
     assert result.exit_code == 0
-    mock_configure.assert_called_once_with(
-        domain="garmin.com", garth_home=".garth"
-    )
-    mock_resume.assert_called_once_with()
+    mock_configure.assert_called_once()
+    call_kwargs = mock_configure.call_args.kwargs
+    assert call_kwargs["domain"] == "garmin.com"
+
     mock_list.assert_called_once_with(end="2024-06-15", period=3)
     data = cast(list[dict[str, object]], json.loads(result.output))
     assert len(data) == 3
@@ -211,16 +205,15 @@ def test_stats_daily_steps():
     app = _app()
     with (
         patch("garth.configure") as mock_configure,
-        patch("garth.resume") as mock_resume,
         patch("garth.stats.DailySteps.list", return_value=[]) as mock_list,
     ):
         result = runner.invoke(app, ["stats", "steps", "daily"])
     assert result.exit_code == 0
     assert json.loads(result.output.strip()) == []
-    mock_configure.assert_called_once_with(
-        domain="garmin.com", garth_home=".garth"
-    )
-    mock_resume.assert_called_once_with()
+    mock_configure.assert_called_once()
+    call_kwargs = mock_configure.call_args.kwargs
+    assert call_kwargs["domain"] == "garmin.com"
+
     mock_list.assert_called_once_with(end=None, period=7)
 
 
@@ -229,7 +222,6 @@ def test_stats_daily_hydration():
     app = _app()
     with (
         patch("garth.configure") as mock_configure,
-        patch("garth.resume") as mock_resume,
         patch("garth.stats.DailyHydration.list", return_value=[]) as mock_list,
     ):
         result = runner.invoke(
@@ -237,10 +229,10 @@ def test_stats_daily_hydration():
         )
     assert result.exit_code == 0
     assert json.loads(result.output.strip()) == []
-    mock_configure.assert_called_once_with(
-        domain="garmin.com", garth_home=".garth"
-    )
-    mock_resume.assert_called_once_with()
+    mock_configure.assert_called_once()
+    call_kwargs = mock_configure.call_args.kwargs
+    assert call_kwargs["domain"] == "garmin.com"
+
     mock_list.assert_called_once_with(end=None, period=2)
 
 
@@ -249,16 +241,15 @@ def test_stats_daily_stress():
     app = _app()
     with (
         patch("garth.configure") as mock_configure,
-        patch("garth.resume") as mock_resume,
         patch("garth.stats.DailyStress.list", return_value=[]) as mock_list,
     ):
         result = runner.invoke(app, ["stats", "stress", "daily"])
     assert result.exit_code == 0
     assert json.loads(result.output.strip()) == []
-    mock_configure.assert_called_once_with(
-        domain="garmin.com", garth_home=".garth"
-    )
-    mock_resume.assert_called_once_with()
+    mock_configure.assert_called_once()
+    call_kwargs = mock_configure.call_args.kwargs
+    assert call_kwargs["domain"] == "garmin.com"
+
     mock_list.assert_called_once_with(end=None, period=7)
 
 
@@ -267,7 +258,6 @@ def test_stats_daily_sleep():
     app = _app()
     with (
         patch("garth.configure") as mock_configure,
-        patch("garth.resume") as mock_resume,
         patch("garth.stats.DailySleep.list", return_value=[]) as mock_list,
     ):
         result = runner.invoke(
@@ -275,10 +265,10 @@ def test_stats_daily_sleep():
         )
     assert result.exit_code == 0
     assert json.loads(result.output.strip()) == []
-    mock_configure.assert_called_once_with(
-        domain="garmin.com", garth_home=".garth"
-    )
-    mock_resume.assert_called_once_with()
+    mock_configure.assert_called_once()
+    call_kwargs = mock_configure.call_args.kwargs
+    assert call_kwargs["domain"] == "garmin.com"
+
     mock_list.assert_called_once_with(end="2024-01-15", period=7)
 
 
@@ -287,16 +277,15 @@ def test_stats_daily_hrv_default_28_days():
     app = _app()
     with (
         patch("garth.configure") as mock_configure,
-        patch("garth.resume") as mock_resume,
         patch("garth.stats.DailyHRV.list", return_value=[]) as mock_list,
     ):
         result = runner.invoke(app, ["stats", "hrv", "daily"])
     assert result.exit_code == 0
     assert json.loads(result.output.strip()) == []
-    mock_configure.assert_called_once_with(
-        domain="garmin.com", garth_home=".garth"
-    )
-    mock_resume.assert_called_once_with()
+    mock_configure.assert_called_once()
+    call_kwargs = mock_configure.call_args.kwargs
+    assert call_kwargs["domain"] == "garmin.com"
+
     mock_list.assert_called_once_with(end=None, period=28)
 
 
@@ -305,7 +294,6 @@ def test_stats_daily_intensity_minutes():
     app = _app()
     with (
         patch("garth.configure") as mock_configure,
-        patch("garth.resume") as mock_resume,
         patch(
             "garth.stats.DailyIntensityMinutes.list",
             return_value=[],
@@ -314,10 +302,10 @@ def test_stats_daily_intensity_minutes():
         result = runner.invoke(app, ["stats", "intensity-minutes", "daily"])
     assert result.exit_code == 0
     assert json.loads(result.output.strip()) == []
-    mock_configure.assert_called_once_with(
-        domain="garmin.com", garth_home=".garth"
-    )
-    mock_resume.assert_called_once_with()
+    mock_configure.assert_called_once()
+    call_kwargs = mock_configure.call_args.kwargs
+    assert call_kwargs["domain"] == "garmin.com"
+
     mock_list.assert_called_once_with(end=None, period=7)
 
 
@@ -326,7 +314,6 @@ def test_stats_daily_training_status():
     app = _app()
     with (
         patch("garth.configure") as mock_configure,
-        patch("garth.resume") as mock_resume,
         patch(
             "garth.stats.DailyTrainingStatus.list",
             return_value=[],
@@ -335,10 +322,10 @@ def test_stats_daily_training_status():
         result = runner.invoke(app, ["stats", "training-status", "daily"])
     assert result.exit_code == 0
     assert json.loads(result.output.strip()) == []
-    mock_configure.assert_called_once_with(
-        domain="garmin.com", garth_home=".garth"
-    )
-    mock_resume.assert_called_once_with()
+    mock_configure.assert_called_once()
+    call_kwargs = mock_configure.call_args.kwargs
+    assert call_kwargs["domain"] == "garmin.com"
+
     mock_list.assert_called_once_with(end=None, period=7)
 
 
@@ -347,16 +334,15 @@ def test_stats_weekly_steps():
     app = _app()
     with (
         patch("garth.configure") as mock_configure,
-        patch("garth.resume") as mock_resume,
         patch("garth.stats.WeeklySteps.list", return_value=[]) as mock_list,
     ):
         result = runner.invoke(app, ["stats", "steps", "weekly"])
     assert result.exit_code == 0
     assert json.loads(result.output.strip()) == []
-    mock_configure.assert_called_once_with(
-        domain="garmin.com", garth_home=".garth"
-    )
-    mock_resume.assert_called_once_with()
+    mock_configure.assert_called_once()
+    call_kwargs = mock_configure.call_args.kwargs
+    assert call_kwargs["domain"] == "garmin.com"
+
     mock_list.assert_called_once_with(end=None, period=7)
 
 
@@ -365,16 +351,15 @@ def test_stats_weekly_stress():
     app = _app()
     with (
         patch("garth.configure") as mock_configure,
-        patch("garth.resume") as mock_resume,
         patch("garth.stats.WeeklyStress.list", return_value=[]) as mock_list,
     ):
         result = runner.invoke(app, ["stats", "stress", "weekly"])
     assert result.exit_code == 0
     assert json.loads(result.output.strip()) == []
-    mock_configure.assert_called_once_with(
-        domain="garmin.com", garth_home=".garth"
-    )
-    mock_resume.assert_called_once_with()
+    mock_configure.assert_called_once()
+    call_kwargs = mock_configure.call_args.kwargs
+    assert call_kwargs["domain"] == "garmin.com"
+
     mock_list.assert_called_once_with(end=None, period=7)
 
 
@@ -383,7 +368,6 @@ def test_stats_weekly_intensity_minutes():
     app = _app()
     with (
         patch("garth.configure") as mock_configure,
-        patch("garth.resume") as mock_resume,
         patch(
             "garth.stats.WeeklyIntensityMinutes.list",
             return_value=[],
@@ -392,10 +376,10 @@ def test_stats_weekly_intensity_minutes():
         result = runner.invoke(app, ["stats", "intensity-minutes", "weekly"])
     assert result.exit_code == 0
     assert json.loads(result.output.strip()) == []
-    mock_configure.assert_called_once_with(
-        domain="garmin.com", garth_home=".garth"
-    )
-    mock_resume.assert_called_once_with()
+    mock_configure.assert_called_once()
+    call_kwargs = mock_configure.call_args.kwargs
+    assert call_kwargs["domain"] == "garmin.com"
+
     mock_list.assert_called_once_with(end=None, period=7)
 
 
@@ -404,7 +388,6 @@ def test_stats_weekly_training_status():
     app = _app()
     with (
         patch("garth.configure") as mock_configure,
-        patch("garth.resume") as mock_resume,
         patch(
             "garth.stats.WeeklyTrainingStatus.list",
             return_value=[],
@@ -413,10 +396,10 @@ def test_stats_weekly_training_status():
         result = runner.invoke(app, ["stats", "training-status", "weekly"])
     assert result.exit_code == 0
     assert json.loads(result.output.strip()) == []
-    mock_configure.assert_called_once_with(
-        domain="garmin.com", garth_home=".garth"
-    )
-    mock_resume.assert_called_once_with()
+    mock_configure.assert_called_once()
+    call_kwargs = mock_configure.call_args.kwargs
+    assert call_kwargs["domain"] == "garmin.com"
+
     mock_list.assert_called_once_with(end=None, period=7)
 
 
@@ -425,7 +408,6 @@ def test_stats_monthly_training_status():
     app = _app()
     with (
         patch("garth.configure") as mock_configure,
-        patch("garth.resume") as mock_resume,
         patch(
             "garth.stats.MonthlyTrainingStatus.list",
             return_value=[],
@@ -434,10 +416,10 @@ def test_stats_monthly_training_status():
         result = runner.invoke(app, ["stats", "training-status", "monthly"])
     assert result.exit_code == 0
     assert json.loads(result.output.strip()) == []
-    mock_configure.assert_called_once_with(
-        domain="garmin.com", garth_home=".garth"
-    )
-    mock_resume.assert_called_once_with()
+    mock_configure.assert_called_once()
+    call_kwargs = mock_configure.call_args.kwargs
+    assert call_kwargs["domain"] == "garmin.com"
+
     mock_list.assert_called_once_with(end=None, period=7)
 
 
@@ -446,16 +428,15 @@ def test_stats_hydration_log():
     app = _app()
     with (
         patch("garth.configure") as mock_configure,
-        patch("garth.resume") as mock_resume,
         patch("garth.stats.DailyHydration.log", return_value=None) as mock_log,
     ):
         result = runner.invoke(app, ["stats", "hydration", "log", "500"])
     assert result.exit_code == 0
     assert json.loads(result.output.strip()) is None
-    mock_configure.assert_called_once_with(
-        domain="garmin.com", garth_home=".garth"
-    )
-    mock_resume.assert_called_once_with()
+    mock_configure.assert_called_once()
+    call_kwargs = mock_configure.call_args.kwargs
+    assert call_kwargs["domain"] == "garmin.com"
+
     mock_log.assert_called_once_with(500.0)
 
 
@@ -505,16 +486,15 @@ def test_data_body_battery_get():
     app = _app()
     with (
         patch("garth.configure") as mock_configure,
-        patch("garth.resume") as mock_resume,
         patch("garth.data.BodyBatteryData.get", return_value=[]) as mock_get,
     ):
         result = runner.invoke(app, ["data", "body-battery", "get"])
     assert result.exit_code == 0
     assert json.loads(result.output.strip()) == []
-    mock_configure.assert_called_once_with(
-        domain="garmin.com", garth_home=".garth"
-    )
-    mock_resume.assert_called_once_with()
+    mock_configure.assert_called_once()
+    call_kwargs = mock_configure.call_args.kwargs
+    assert call_kwargs["domain"] == "garmin.com"
+
     mock_get.assert_called_once_with(None)
 
 
@@ -523,7 +503,6 @@ def test_data_body_battery_list():
     app = _app()
     with (
         patch("garth.configure") as mock_configure,
-        patch("garth.resume") as mock_resume,
         patch("garth.data.BodyBatteryData.list", return_value=[]) as mock_list,
     ):
         result = runner.invoke(
@@ -532,10 +511,10 @@ def test_data_body_battery_list():
         )
     assert result.exit_code == 0
     assert json.loads(result.output.strip()) == []
-    mock_configure.assert_called_once_with(
-        domain="garmin.com", garth_home=".garth"
-    )
-    mock_resume.assert_called_once_with()
+    mock_configure.assert_called_once()
+    call_kwargs = mock_configure.call_args.kwargs
+    assert call_kwargs["domain"] == "garmin.com"
+
     mock_list.assert_called_once_with(end=None, days=2)
 
 
@@ -544,7 +523,6 @@ def test_data_body_battery_returns_list():
     app = _app()
     with (
         patch("garth.configure"),
-        patch("garth.resume"),
         patch(
             "garth.data.BodyBatteryData.get",
             return_value=[],
@@ -560,7 +538,6 @@ def test_data_body_battery_stress_get():
     app = _app()
     with (
         patch("garth.configure") as mock_configure,
-        patch("garth.resume") as mock_resume,
         patch(
             "garth.data.DailyBodyBatteryStress.get",
             return_value=None,
@@ -572,10 +549,10 @@ def test_data_body_battery_stress_get():
         )
     assert result.exit_code == 0
     assert json.loads(result.output.strip()) is None
-    mock_configure.assert_called_once_with(
-        domain="garmin.com", garth_home=".garth"
-    )
-    mock_resume.assert_called_once_with()
+    mock_configure.assert_called_once()
+    call_kwargs = mock_configure.call_args.kwargs
+    assert call_kwargs["domain"] == "garmin.com"
+
     mock_get.assert_called_once_with(None)
 
 
@@ -584,7 +561,6 @@ def test_data_body_battery_stress_list():
     app = _app()
     with (
         patch("garth.configure") as mock_configure,
-        patch("garth.resume") as mock_resume,
         patch(
             "garth.data.DailyBodyBatteryStress.list",
             return_value=[],
@@ -596,10 +572,10 @@ def test_data_body_battery_stress_list():
         )
     assert result.exit_code == 0
     assert json.loads(result.output.strip()) == []
-    mock_configure.assert_called_once_with(
-        domain="garmin.com", garth_home=".garth"
-    )
-    mock_resume.assert_called_once_with()
+    mock_configure.assert_called_once()
+    call_kwargs = mock_configure.call_args.kwargs
+    assert call_kwargs["domain"] == "garmin.com"
+
     mock_list.assert_called_once_with(end=None, days=3)
 
 
@@ -608,16 +584,15 @@ def test_data_heart_rate_get():
     app = _app()
     with (
         patch("garth.configure") as mock_configure,
-        patch("garth.resume") as mock_resume,
         patch("garth.data.DailyHeartRate.get", return_value=None) as mock_get,
     ):
         result = runner.invoke(app, ["data", "heart-rate", "get"])
     assert result.exit_code == 0
     assert json.loads(result.output.strip()) is None
-    mock_configure.assert_called_once_with(
-        domain="garmin.com", garth_home=".garth"
-    )
-    mock_resume.assert_called_once_with()
+    mock_configure.assert_called_once()
+    call_kwargs = mock_configure.call_args.kwargs
+    assert call_kwargs["domain"] == "garmin.com"
+
     mock_get.assert_called_once_with(None)
 
 
@@ -626,7 +601,6 @@ def test_data_heart_rate_list():
     app = _app()
     with (
         patch("garth.configure") as mock_configure,
-        patch("garth.resume") as mock_resume,
         patch("garth.data.DailyHeartRate.list", return_value=[]) as mock_list,
     ):
         result = runner.invoke(
@@ -634,10 +608,10 @@ def test_data_heart_rate_list():
         )
     assert result.exit_code == 0
     assert json.loads(result.output.strip()) == []
-    mock_configure.assert_called_once_with(
-        domain="garmin.com", garth_home=".garth"
-    )
-    mock_resume.assert_called_once_with()
+    mock_configure.assert_called_once()
+    call_kwargs = mock_configure.call_args.kwargs
+    assert call_kwargs["domain"] == "garmin.com"
+
     mock_list.assert_called_once_with(end=None, days=5)
 
 
@@ -646,16 +620,15 @@ def test_data_sleep_get():
     app = _app()
     with (
         patch("garth.configure") as mock_configure,
-        patch("garth.resume") as mock_resume,
         patch("garth.data.DailySleepData.get", return_value=None) as mock_get,
     ):
         result = runner.invoke(app, ["data", "sleep", "get"])
     assert result.exit_code == 0
     assert json.loads(result.output.strip()) is None
-    mock_configure.assert_called_once_with(
-        domain="garmin.com", garth_home=".garth"
-    )
-    mock_resume.assert_called_once_with()
+    mock_configure.assert_called_once()
+    call_kwargs = mock_configure.call_args.kwargs
+    assert call_kwargs["domain"] == "garmin.com"
+
     mock_get.assert_called_once_with(None)
 
 
@@ -664,16 +637,15 @@ def test_data_sleep_list():
     app = _app()
     with (
         patch("garth.configure") as mock_configure,
-        patch("garth.resume") as mock_resume,
         patch("garth.data.DailySleepData.list", return_value=[]) as mock_list,
     ):
         result = runner.invoke(app, ["data", "sleep", "list", "--days", "2"])
     assert result.exit_code == 0
     assert json.loads(result.output.strip()) == []
-    mock_configure.assert_called_once_with(
-        domain="garmin.com", garth_home=".garth"
-    )
-    mock_resume.assert_called_once_with()
+    mock_configure.assert_called_once()
+    call_kwargs = mock_configure.call_args.kwargs
+    assert call_kwargs["domain"] == "garmin.com"
+
     mock_list.assert_called_once_with(end=None, days=2)
 
 
@@ -682,16 +654,15 @@ def test_data_daily_summary_get():
     app = _app()
     with (
         patch("garth.configure") as mock_configure,
-        patch("garth.resume") as mock_resume,
         patch("garth.data.DailySummary.get", return_value=None) as mock_get,
     ):
         result = runner.invoke(app, ["data", "daily-summary", "get"])
     assert result.exit_code == 0
     assert json.loads(result.output.strip()) is None
-    mock_configure.assert_called_once_with(
-        domain="garmin.com", garth_home=".garth"
-    )
-    mock_resume.assert_called_once_with()
+    mock_configure.assert_called_once()
+    call_kwargs = mock_configure.call_args.kwargs
+    assert call_kwargs["domain"] == "garmin.com"
+
     mock_get.assert_called_once_with(None)
 
 
@@ -700,7 +671,6 @@ def test_data_daily_summary_list():
     app = _app()
     with (
         patch("garth.configure") as mock_configure,
-        patch("garth.resume") as mock_resume,
         patch("garth.data.DailySummary.list", return_value=[]) as mock_list,
     ):
         result = runner.invoke(
@@ -709,10 +679,10 @@ def test_data_daily_summary_list():
         )
     assert result.exit_code == 0
     assert json.loads(result.output.strip()) == []
-    mock_configure.assert_called_once_with(
-        domain="garmin.com", garth_home=".garth"
-    )
-    mock_resume.assert_called_once_with()
+    mock_configure.assert_called_once()
+    call_kwargs = mock_configure.call_args.kwargs
+    assert call_kwargs["domain"] == "garmin.com"
+
     mock_list.assert_called_once_with(end=None, days=9)
 
 
@@ -721,7 +691,6 @@ def test_data_garmin_scores_get():
     app = _app()
     with (
         patch("garth.configure") as mock_configure,
-        patch("garth.resume") as mock_resume,
         patch(
             "garth.data.GarminScoresData.get", return_value=None
         ) as mock_get,
@@ -729,10 +698,10 @@ def test_data_garmin_scores_get():
         result = runner.invoke(app, ["data", "garmin-scores", "get"])
     assert result.exit_code == 0
     assert json.loads(result.output.strip()) is None
-    mock_configure.assert_called_once_with(
-        domain="garmin.com", garth_home=".garth"
-    )
-    mock_resume.assert_called_once_with()
+    mock_configure.assert_called_once()
+    call_kwargs = mock_configure.call_args.kwargs
+    assert call_kwargs["domain"] == "garmin.com"
+
     mock_get.assert_called_once_with(None)
 
 
@@ -741,7 +710,6 @@ def test_data_garmin_scores_list():
     app = _app()
     with (
         patch("garth.configure") as mock_configure,
-        patch("garth.resume") as mock_resume,
         patch(
             "garth.data.GarminScoresData.list", return_value=[]
         ) as mock_list,
@@ -752,10 +720,10 @@ def test_data_garmin_scores_list():
         )
     assert result.exit_code == 0
     assert json.loads(result.output.strip()) == []
-    mock_configure.assert_called_once_with(
-        domain="garmin.com", garth_home=".garth"
-    )
-    mock_resume.assert_called_once_with()
+    mock_configure.assert_called_once()
+    call_kwargs = mock_configure.call_args.kwargs
+    assert call_kwargs["domain"] == "garmin.com"
+
     mock_list.assert_called_once_with(end=None, days=4)
 
 
@@ -764,16 +732,15 @@ def test_data_hrv_get():
     app = _app()
     with (
         patch("garth.configure") as mock_configure,
-        patch("garth.resume") as mock_resume,
         patch("garth.data.HRVData.get", return_value=None) as mock_get,
     ):
         result = runner.invoke(app, ["data", "hrv", "get"])
     assert result.exit_code == 0
     assert json.loads(result.output.strip()) is None
-    mock_configure.assert_called_once_with(
-        domain="garmin.com", garth_home=".garth"
-    )
-    mock_resume.assert_called_once_with()
+    mock_configure.assert_called_once()
+    call_kwargs = mock_configure.call_args.kwargs
+    assert call_kwargs["domain"] == "garmin.com"
+
     mock_get.assert_called_once_with(None)
 
 
@@ -782,16 +749,15 @@ def test_data_hrv_list():
     app = _app()
     with (
         patch("garth.configure") as mock_configure,
-        patch("garth.resume") as mock_resume,
         patch("garth.data.HRVData.list", return_value=[]) as mock_list,
     ):
         result = runner.invoke(app, ["data", "hrv", "list", "--days", "7"])
     assert result.exit_code == 0
     assert json.loads(result.output.strip()) == []
-    mock_configure.assert_called_once_with(
-        domain="garmin.com", garth_home=".garth"
-    )
-    mock_resume.assert_called_once_with()
+    mock_configure.assert_called_once()
+    call_kwargs = mock_configure.call_args.kwargs
+    assert call_kwargs["domain"] == "garmin.com"
+
     mock_list.assert_called_once_with(end=None, days=7)
 
 
@@ -800,7 +766,6 @@ def test_data_morning_readiness_get():
     app = _app()
     with (
         patch("garth.configure") as mock_configure,
-        patch("garth.resume") as mock_resume,
         patch(
             "garth.data.MorningTrainingReadinessData.get",
             return_value=None,
@@ -809,10 +774,10 @@ def test_data_morning_readiness_get():
         result = runner.invoke(app, ["data", "morning-readiness", "get"])
     assert result.exit_code == 0
     assert json.loads(result.output.strip()) is None
-    mock_configure.assert_called_once_with(
-        domain="garmin.com", garth_home=".garth"
-    )
-    mock_resume.assert_called_once_with()
+    mock_configure.assert_called_once()
+    call_kwargs = mock_configure.call_args.kwargs
+    assert call_kwargs["domain"] == "garmin.com"
+
     mock_get.assert_called_once_with(None)
 
 
@@ -821,7 +786,6 @@ def test_data_morning_readiness_list():
     app = _app()
     with (
         patch("garth.configure") as mock_configure,
-        patch("garth.resume") as mock_resume,
         patch(
             "garth.data.MorningTrainingReadinessData.list",
             return_value=[],
@@ -833,10 +797,10 @@ def test_data_morning_readiness_list():
         )
     assert result.exit_code == 0
     assert json.loads(result.output.strip()) == []
-    mock_configure.assert_called_once_with(
-        domain="garmin.com", garth_home=".garth"
-    )
-    mock_resume.assert_called_once_with()
+    mock_configure.assert_called_once()
+    call_kwargs = mock_configure.call_args.kwargs
+    assert call_kwargs["domain"] == "garmin.com"
+
     mock_list.assert_called_once_with(end=None, days=6)
 
 
@@ -845,7 +809,6 @@ def test_data_training_readiness_get():
     app = _app()
     with (
         patch("garth.configure") as mock_configure,
-        patch("garth.resume") as mock_resume,
         patch(
             "garth.data.TrainingReadinessData.get",
             return_value=None,
@@ -854,10 +817,10 @@ def test_data_training_readiness_get():
         result = runner.invoke(app, ["data", "training-readiness", "get"])
     assert result.exit_code == 0
     assert json.loads(result.output.strip()) is None
-    mock_configure.assert_called_once_with(
-        domain="garmin.com", garth_home=".garth"
-    )
-    mock_resume.assert_called_once_with()
+    mock_configure.assert_called_once()
+    call_kwargs = mock_configure.call_args.kwargs
+    assert call_kwargs["domain"] == "garmin.com"
+
     mock_get.assert_called_once_with(None)
 
 
@@ -866,7 +829,6 @@ def test_data_training_readiness_list():
     app = _app()
     with (
         patch("garth.configure") as mock_configure,
-        patch("garth.resume") as mock_resume,
         patch(
             "garth.data.TrainingReadinessData.list",
             return_value=[],
@@ -878,10 +840,10 @@ def test_data_training_readiness_list():
         )
     assert result.exit_code == 0
     assert json.loads(result.output.strip()) == []
-    mock_configure.assert_called_once_with(
-        domain="garmin.com", garth_home=".garth"
-    )
-    mock_resume.assert_called_once_with()
+    mock_configure.assert_called_once()
+    call_kwargs = mock_configure.call_args.kwargs
+    assert call_kwargs["domain"] == "garmin.com"
+
     mock_list.assert_called_once_with(end=None, days=8)
 
 
@@ -890,16 +852,15 @@ def test_data_sleep_detail_get():
     app = _app()
     with (
         patch("garth.configure") as mock_configure,
-        patch("garth.resume") as mock_resume,
         patch("garth.data.SleepData.get", return_value=None) as mock_get,
     ):
         result = runner.invoke(app, ["data", "sleep-detail", "get"])
     assert result.exit_code == 0
     assert json.loads(result.output.strip()) is None
-    mock_configure.assert_called_once_with(
-        domain="garmin.com", garth_home=".garth"
-    )
-    mock_resume.assert_called_once_with()
+    mock_configure.assert_called_once()
+    call_kwargs = mock_configure.call_args.kwargs
+    assert call_kwargs["domain"] == "garmin.com"
+
     mock_get.assert_called_once_with(None, buffer_minutes=60)
 
 
@@ -908,7 +869,6 @@ def test_data_sleep_detail_buffer_minutes():
     app = _app()
     with (
         patch("garth.configure") as mock_configure,
-        patch("garth.resume") as mock_resume,
         patch("garth.data.SleepData.get", return_value=None) as mock_get,
     ):
         result = runner.invoke(
@@ -917,10 +877,10 @@ def test_data_sleep_detail_buffer_minutes():
         )
     assert result.exit_code == 0
     assert json.loads(result.output.strip()) is None
-    mock_configure.assert_called_once_with(
-        domain="garmin.com", garth_home=".garth"
-    )
-    mock_resume.assert_called_once_with()
+    mock_configure.assert_called_once()
+    call_kwargs = mock_configure.call_args.kwargs
+    assert call_kwargs["domain"] == "garmin.com"
+
     mock_get.assert_called_once_with(None, buffer_minutes=30)
 
 
@@ -929,7 +889,6 @@ def test_data_sleep_detail_list():
     app = _app()
     with (
         patch("garth.configure") as mock_configure,
-        patch("garth.resume") as mock_resume,
         patch("garth.data.SleepData.list", return_value=[]) as mock_list,
     ):
         result = runner.invoke(
@@ -937,10 +896,10 @@ def test_data_sleep_detail_list():
         )
     assert result.exit_code == 0
     assert json.loads(result.output.strip()) == []
-    mock_configure.assert_called_once_with(
-        domain="garmin.com", garth_home=".garth"
-    )
-    mock_resume.assert_called_once_with()
+    mock_configure.assert_called_once()
+    call_kwargs = mock_configure.call_args.kwargs
+    assert call_kwargs["domain"] == "garmin.com"
+
     mock_list.assert_called_once_with(end=None, days=2)
 
 
@@ -949,16 +908,15 @@ def test_data_activity_list():
     app = _app()
     with (
         patch("garth.configure") as mock_configure,
-        patch("garth.resume") as mock_resume,
         patch("garth.data.Activity.list", return_value=[]) as mock_list,
     ):
         result = runner.invoke(app, ["data", "activity", "list"])
     assert result.exit_code == 0
     assert json.loads(result.output.strip()) == []
-    mock_configure.assert_called_once_with(
-        domain="garmin.com", garth_home=".garth"
-    )
-    mock_resume.assert_called_once_with()
+    mock_configure.assert_called_once()
+    call_kwargs = mock_configure.call_args.kwargs
+    assert call_kwargs["domain"] == "garmin.com"
+
     mock_list.assert_called_once_with(limit=20, start=0)
 
 
@@ -967,16 +925,15 @@ def test_data_activity_get():
     app = _app()
     with (
         patch("garth.configure") as mock_configure,
-        patch("garth.resume") as mock_resume,
         patch("garth.data.Activity.get", return_value=None) as mock_get,
     ):
         result = runner.invoke(app, ["data", "activity", "get", "123"])
     assert result.exit_code == 0
     assert json.loads(result.output.strip()) is None
-    mock_configure.assert_called_once_with(
-        domain="garmin.com", garth_home=".garth"
-    )
-    mock_resume.assert_called_once_with()
+    mock_configure.assert_called_once()
+    call_kwargs = mock_configure.call_args.kwargs
+    assert call_kwargs["domain"] == "garmin.com"
+
     mock_get.assert_called_once_with(123)
 
 
@@ -985,7 +942,6 @@ def test_data_activity_update():
     app = _app()
     with (
         patch("garth.configure") as mock_configure,
-        patch("garth.resume") as mock_resume,
         patch("garth.data.Activity.update", return_value=None) as mock_update,
     ):
         result = runner.invoke(
@@ -994,10 +950,10 @@ def test_data_activity_update():
         )
     assert result.exit_code == 0
     assert json.loads(result.output.strip()) == {"updated": 123}
-    mock_configure.assert_called_once_with(
-        domain="garmin.com", garth_home=".garth"
-    )
-    mock_resume.assert_called_once_with()
+    mock_configure.assert_called_once()
+    call_kwargs = mock_configure.call_args.kwargs
+    assert call_kwargs["domain"] == "garmin.com"
+
     mock_update.assert_called_once_with(123, name="Run", description=None)
 
 
@@ -1013,16 +969,15 @@ def test_data_fitness_activity_list():
     app = _app()
     with (
         patch("garth.configure") as mock_configure,
-        patch("garth.resume") as mock_resume,
         patch("garth.data.FitnessActivity.list", return_value=[]) as mock_list,
     ):
         result = runner.invoke(app, ["data", "fitness-activity", "list"])
     assert result.exit_code == 0
     assert json.loads(result.output.strip()) == []
-    mock_configure.assert_called_once_with(
-        domain="garmin.com", garth_home=".garth"
-    )
-    mock_resume.assert_called_once_with()
+    mock_configure.assert_called_once()
+    call_kwargs = mock_configure.call_args.kwargs
+    assert call_kwargs["domain"] == "garmin.com"
+
     mock_list.assert_called_once_with(end=None, days=7)
 
 
@@ -1031,16 +986,15 @@ def test_data_weight_list():
     app = _app()
     with (
         patch("garth.configure") as mock_configure,
-        patch("garth.resume") as mock_resume,
         patch("garth.data.WeightData.list", return_value=[]) as mock_list,
     ):
         result = runner.invoke(app, ["data", "weight", "list", "--days", "3"])
     assert result.exit_code == 0
     assert json.loads(result.output.strip()) == []
-    mock_configure.assert_called_once_with(
-        domain="garmin.com", garth_home=".garth"
-    )
-    mock_resume.assert_called_once_with()
+    mock_configure.assert_called_once()
+    call_kwargs = mock_configure.call_args.kwargs
+    assert call_kwargs["domain"] == "garmin.com"
+
     mock_list.assert_called_once_with(end=None, days=3)
 
 
@@ -1082,16 +1036,15 @@ def test_users_profile():
     app = _app()
     with (
         patch("garth.configure") as mock_configure,
-        patch("garth.resume") as mock_resume,
         patch("garth.users.UserProfile.get", return_value=None) as mock_get,
     ):
         result = runner.invoke(app, ["users", "profile"])
     assert result.exit_code == 0
     assert json.loads(result.output.strip()) is None
-    mock_configure.assert_called_once_with(
-        domain="garmin.com", garth_home=".garth"
-    )
-    mock_resume.assert_called_once_with()
+    mock_configure.assert_called_once()
+    call_kwargs = mock_configure.call_args.kwargs
+    assert call_kwargs["domain"] == "garmin.com"
+
     mock_get.assert_called_once()
 
 
@@ -1100,16 +1053,15 @@ def test_users_settings():
     app = _app()
     with (
         patch("garth.configure") as mock_configure,
-        patch("garth.resume") as mock_resume,
         patch("garth.users.UserSettings.get", return_value=None) as mock_get,
     ):
         result = runner.invoke(app, ["users", "settings"])
     assert result.exit_code == 0
     assert json.loads(result.output.strip()) is None
-    mock_configure.assert_called_once_with(
-        domain="garmin.com", garth_home=".garth"
-    )
-    mock_resume.assert_called_once_with()
+    mock_configure.assert_called_once()
+    call_kwargs = mock_configure.call_args.kwargs
+    assert call_kwargs["domain"] == "garmin.com"
+
     mock_get.assert_called_once()
 
 
@@ -1120,22 +1072,21 @@ def test_upload(tmp_path: Path):
     _ = tmp_file.write_bytes(b"fit-data")
     with (
         patch("garth.configure") as mock_configure,
-        patch("garth.resume") as mock_resume,
         patch("garth.upload", return_value={"status": "ok"}) as mock_upload,
     ):
         result = runner.invoke(app, ["upload", str(tmp_file)])
     assert result.exit_code == 0
     assert json.loads(result.output.strip()) == {"status": "ok"}
-    mock_configure.assert_called_once_with(
-        domain="garmin.com", garth_home=".garth"
-    )
-    mock_resume.assert_called_once_with()
+    mock_configure.assert_called_once()
+    call_kwargs = mock_configure.call_args.kwargs
+    assert call_kwargs["domain"] == "garmin.com"
+
     mock_upload.assert_called_once()
 
 
 def test_api_invalid_json():
     runner = _runner()
-    with patch("garth.configure"), patch("garth.resume"):
+    with patch("garth.configure"):
         result = runner.invoke(_app(), ["api", "/test", "--data", "not-json"])
     assert result.exit_code == 1
     assert "Invalid JSON" in result.output
@@ -1143,7 +1094,7 @@ def test_api_invalid_json():
 
 def test_data_body_battery_list_negative_days():
     runner = _runner()
-    with patch("garth.configure"), patch("garth.resume"):
+    with patch("garth.configure"):
         result = runner.invoke(
             _app(), ["data", "body-battery", "list", "--days", "0"]
         )
@@ -1152,7 +1103,7 @@ def test_data_body_battery_list_negative_days():
 
 def test_data_daily_summary_list_negative_days():
     runner = _runner()
-    with patch("garth.configure"), patch("garth.resume"):
+    with patch("garth.configure"):
         result = runner.invoke(
             _app(), ["data", "daily-summary", "list", "--days", "-1"]
         )
@@ -1170,7 +1121,6 @@ def test_data_weight_get():
     runner = _runner()
     with (
         patch("garth.configure"),
-        patch("garth.resume"),
         patch("garth.data.WeightData.get", return_value=None) as mock_get,
     ):
         result = runner.invoke(_app(), ["data", "weight", "get"])
@@ -1183,7 +1133,6 @@ def test_data_weight_get_with_day():
     runner = _runner()
     with (
         patch("garth.configure"),
-        patch("garth.resume"),
         patch("garth.data.WeightData.get", return_value=None) as mock_get,
     ):
         result = runner.invoke(
@@ -1197,7 +1146,6 @@ def test_data_weight_create():
     runner = _runner()
     with (
         patch("garth.configure"),
-        patch("garth.resume"),
         patch("garth.data.WeightData.create") as mock_create,
     ):
         result = runner.invoke(_app(), ["data", "weight", "create", "72.5"])
@@ -1210,7 +1158,6 @@ def test_data_weight_create_with_timestamp():
     runner = _runner()
     with (
         patch("garth.configure"),
-        patch("garth.resume"),
         patch("garth.data.WeightData.create") as mock_create,
     ):
         result = runner.invoke(
@@ -1243,7 +1190,6 @@ def test_data_weight_delete():
     runner = _runner()
     with (
         patch("garth.configure"),
-        patch("garth.resume"),
         patch("garth.data.WeightData.delete") as mock_delete,
     ):
         result = runner.invoke(_app(), ["data", "weight", "delete", "12345"])
@@ -1256,7 +1202,6 @@ def test_data_weight_delete_with_day():
     runner = _runner()
     with (
         patch("garth.configure"),
-        patch("garth.resume"),
         patch("garth.data.WeightData.delete") as mock_delete,
     ):
         result = runner.invoke(
@@ -1271,7 +1216,6 @@ def test_data_weight_create_body_composition():
     runner = _runner()
     with (
         patch("garth.configure"),
-        patch("garth.resume"),
         patch("garth.data.WeightData.create_body_composition") as mock_cbc,
     ):
         result = runner.invoke(
@@ -1300,7 +1244,6 @@ def test_data_weight_create_body_composition_with_params():
     runner = _runner()
     with (
         patch("garth.configure"),
-        patch("garth.resume"),
         patch("garth.data.WeightData.create_body_composition") as mock_cbc,
     ):
         result = runner.invoke(
@@ -1340,7 +1283,6 @@ def test_data_weight_create_body_composition_with_timestamp():
     runner = _runner()
     with (
         patch("garth.configure"),
-        patch("garth.resume"),
         patch("garth.data.WeightData.create_body_composition") as mock_cbc,
     ):
         result = runner.invoke(

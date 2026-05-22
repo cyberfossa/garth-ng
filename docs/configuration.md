@@ -65,37 +65,40 @@ garth.configure(
 
 ## Token Persistence
 
-### Custom token callback
+### Custom token storage
 
-Register a callback that fires automatically after login and every token
-refresh. Use this instead of `GARTH_HOME` when you need custom storage
-(database, secrets manager, etc.):
-
-```python
-def persist_token(token: OAuth2Token) -> None:
-    redis.set("garth:token", client.dumps())
-
-garth.configure(on_token_update=persist_token)
-```
-
-The callback receives the fresh `OAuth2Token` after each successful login or
-refresh. It **replaces** the automatic file dump — when a callback is set,
-`GARTH_HOME` is ignored for auto-persistence.
-
-To revert to the default persistence behavior:
+Implement the `TokenStorage` protocol to persist tokens in any backend
+(database, secrets manager, etc.) instead of the filesystem:
 
 ```python
-# Restore default persistence (Variant D semantics)
-garth.configure(on_token_update=None)
+from garth import TokenStorage
+from garth.auth_tokens import OAuth2Token
 
-# Or explicitly enable file dump:
-garth.configure(on_token_update=garth.client.dump_to_home)
+class RedisTokenStorage:
+    def save(self, token: OAuth2Token) -> None:
+        redis.set("garth:token", token.model_dump_json())
 
-# To explicitly disable persistence:
-garth.configure(on_token_update=garth.client.noop_token_callback)
+    def load(self) -> OAuth2Token | None:
+        data = redis.get("garth:token")
+        return OAuth2Token.model_validate_json(data) if data else None
+
+garth.configure(storage=RedisTokenStorage())
 ```
 
-!!! warning "Exception handling"
-    If your callback raises an exception, it propagates up through the login or
-    refresh call. Handle errors inside your callback to avoid interrupting the
-    authentication flow.
+The storage's `save()` is called automatically after each successful login or
+token refresh. `load()` is called once when `configure(storage=...)` is first
+set, so the client resumes any previously saved session immediately.
+
+To use file-based persistence with a custom path:
+
+```python
+from garth import FileTokenStorage
+
+garth.configure(storage=FileTokenStorage("~/.garth"))
+```
+
+To disable persistence (tokens in memory only):
+
+```python
+garth.configure(storage=None)
+```

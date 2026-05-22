@@ -58,7 +58,6 @@ def oauth2_token() -> OAuth2Token:
 def authed_client(oauth2_token: OAuth2Token) -> Client:
     client = Client()
     client.oauth2_token = oauth2_token
-    client._garth_home = None
     assert client.oauth2_token and isinstance(client.oauth2_token, OAuth2Token)
     assert not client.oauth2_token.expired
     return client

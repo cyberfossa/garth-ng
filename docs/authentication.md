@@ -35,7 +35,7 @@ login() ──────────────────► OAuth2Token
     When `GARTH_HOME` is set (either as an environment variable or via a previous
     `save()` call), the refreshed token is automatically written back to disk.
     Your session stays current without any extra code. For custom storage backends,
-    use the [`on_token_update` callback](#on_token_update-callback) instead.
+    use the [`TokenStorage` protocol](#tokenstorage-protocol) instead.
 
 ## Token Persistence
 
@@ -167,52 +167,45 @@ def fetch_for_user(user_id: str, path: str):
     return result
 ```
 
-### on_token_update callback
+### TokenStorage protocol
 
-For production use, register a callback instead of calling `dumps()` manually.
-The callback fires automatically after login and every token refresh — you
-don't have to remember to persist:
+For production use, implement the `TokenStorage` protocol instead of calling
+`dumps()` manually. The storage's `save()` fires automatically after login and
+every token refresh — you don't have to remember to persist:
 
 ```python
-def save_token(token: OAuth2Token) -> None:
-    db.set(f"users/{user_id}/garth_token", client.dumps())
+from garth import TokenStorage
+from garth.auth_tokens import OAuth2Token
+
+class DbTokenStorage:
+    def __init__(self, user_id: str):
+        self.user_id = user_id
+
+    def save(self, token: OAuth2Token) -> None:
+        db.set(f"users/{self.user_id}/garth_token", token.model_dump_json())
+
+    def load(self) -> OAuth2Token | None:
+        data = db.get(f"users/{self.user_id}/garth_token")
+        return OAuth2Token.model_validate_json(data) if data else None
 
 client = Client()
-client.configure(on_token_update=save_token)
-client.loads(db.get(f"users/{user_id}/garth_token"))
+client.configure(storage=DbTokenStorage(user_id))
 
 # Token is automatically persisted after login and every refresh
 result = client.connectapi("/wellness-service/wellness/dailySummary")
 ```
 
-The callback receives an `OAuth2Token` — the same object held by the client
-after the operation completes. Its signature is
-`Callable[[OAuth2Token], None]`.
+`load()` is called once when `configure(storage=...)` is set, so the client
+resumes any previously saved session immediately.
 
-The callback **replaces** the automatic file dump. When one is
-registered, `GARTH_HOME` is ignored for auto-persistence. To revert
-to the default behavior (file dump when `GARTH_HOME` is set, noop
-otherwise):
-
-```python
-# Restore default persistence (Variant D semantics)
-client.configure(on_token_update=None)
-
-# Or explicitly enable file dump:
-client.configure(on_token_update=client.dump_to_home)
-
-# To explicitly disable persistence:
-client.configure(on_token_update=client.noop_token_callback)
-```
-
-For the global singleton, use
-`garth.configure(on_token_update=callback)` to set a custom
-callback, and `on_token_update=None` to revert to default.
+For the global singleton, use `garth.configure(storage=...)` to set a custom
+storage, and `garth.configure(storage=None)` to disable persistence (tokens
+in memory only).
 
 !!! warning "Exception handling"
-    If your callback raises an exception, it propagates up through the login or
-    refresh call. Handle errors inside your callback to avoid interrupting the
-    authentication flow.
+    If your `TokenStorage.save()` raises an exception, it propagates up through
+    the login or refresh call. Handle errors inside your storage implementation
+    to avoid interrupting the authentication flow.
 
 !!! warning "Thread safety"
     Each `Client` has its own HTTP session, so parallel requests across

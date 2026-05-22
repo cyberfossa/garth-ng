@@ -28,6 +28,7 @@ from .stats import (
     WeeklyStress,
     WeeklyTrainingStatus,
 )
+from .storage import EnvTokenStorage, FileTokenStorage, TokenStorage
 from .users import UserProfile, UserSettings
 from .version import __version__
 
@@ -56,6 +57,9 @@ __all__ = [
     "TrainingReadinessData",
     "UserProfile",
     "UserSettings",
+    "EnvTokenStorage",
+    "FileTokenStorage",
+    "TokenStorage",
     "WeeklyIntensityMinutes",
     "WeeklySteps",
     "WeeklyStress",
@@ -67,8 +71,6 @@ __all__ = [
     "connectapi",
     "download",
     "login",
-    "resume",
-    "save",
     "upload",
 ]
 
@@ -76,6 +78,4 @@ configure = client.configure
 connectapi = client.connectapi
 download = client.download
 login = client.login
-resume = client.load
-save = client.dump
 upload = client.upload
