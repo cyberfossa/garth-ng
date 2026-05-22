@@ -80,7 +80,6 @@ class Client:
         )
         self.session.headers.update(USER_AGENT)
         self.telemetry = Telemetry()
-        self.storage = None
         self._auto_resume()
         self.configure(
             timeout=self.timeout,
