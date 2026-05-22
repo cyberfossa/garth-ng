@@ -21,7 +21,6 @@ from .telemetry import Telemetry
 USER_AGENT = {"User-Agent": "GCM-iOS-5.22.1.4"}
 
 _SUPPORTED_METHODS: frozenset[str] = frozenset(get_args(HttpMethod))
-_STORAGE_UNSET = object()
 
 
 class GarthSettings(BaseSettings):
@@ -118,7 +117,7 @@ class Client:
         telemetry_send_to_logfire: bool | None = None,
         telemetry_token: str | None = None,
         telemetry_callback: Callable[[dict[str, Any]], None] | None = None,
-        storage: TokenStorage | None | object = _STORAGE_UNSET,
+        storage: TokenStorage | None = None,
     ):
         """Configure HTTP client and telemetry settings.
 
@@ -143,7 +142,7 @@ class Client:
             self.status_forcelist = status_forcelist
         if backoff_factor is not None:
             self.backoff_factor = backoff_factor
-        if storage is not _STORAGE_UNSET:
+        if storage is not None:
             self.storage = cast(TokenStorage | None, storage)
             if self.storage is not None:
                 token = self.storage.load()
