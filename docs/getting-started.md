@@ -24,14 +24,16 @@ Use `make help` to see all available development commands.
 
 ```python
 import garth
+
+garth.configure(storage=garth.FileTokenStorage("~/.garth"))
+
 from getpass import getpass
 
 email = input("Enter email address: ")
 password = getpass("Enter password: ")
 # If there's MFA, you'll be prompted during the login
 garth.login(email, password)
-
-garth.save("~/.garth")
+# Token is automatically saved to ~/.garth after login
 ```
 
 ### Custom MFA handler
@@ -67,7 +69,7 @@ if isinstance(result, MFAState):
 ```python
 import garth
 
-garth.resume("~/.garth")
+garth.configure(storage=garth.FileTokenStorage("~/.garth"))
 # Make an API call to verify the session works
 garth.client.username
 ```
