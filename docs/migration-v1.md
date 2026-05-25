@@ -13,7 +13,10 @@ and the public API is fully typed with explicit parameters instead of
 **What stayed the same:**
 
 - `import garth` — the package name is unchanged
-- `garth.connectapi()`, `garth.save()`, `garth.resume()` — same function names
+- `garth.connectapi()` — same function name
+- Session persistence now uses
+  `garth.configure(storage=garth.FileTokenStorage(path))` instead of
+  `garth.save()`/`garth.resume()`
 - All stats and data types (`DailySteps`, `SleepData`, etc.)
 - `GARTH_HOME` and `GARTH_TOKEN` environment variables
 - Domain configuration (`garmin.com`, `garmin.cn`)
@@ -47,8 +50,9 @@ unset GARTH_TOKEN
 Then log in again:
 
 ```python
+garth.configure(storage=garth.FileTokenStorage("~/.garth"))
 garth.login(email, password, prompt_mfa=input)
-garth.save("~/.garth")
+# Token is automatically saved to ~/.garth after login
 ```
 
 !!! warning "No automatic migration"
@@ -174,14 +178,16 @@ garth.configure(oauth1_token=token, pool_connections=20, pool_maxsize=20)
 garth.configure()
 ```
 
-### `dump()` — `oauth2_only` parameter removed
+### `dump()` / `load()` — removed entirely
 
 ```python
 # OLD
-garth.client.dump(path, oauth2_only=True)
-
-# NEW — always writes only OAuth2 (the only token type now)
 garth.client.dump(path)
+garth.client.load(path)
+
+# NEW — use FileTokenStorage via configure() instead
+garth.configure(storage=garth.FileTokenStorage(path))
+# Token is automatically loaded on configure() and saved after login/refresh
 ```
 
 ### Exception types
@@ -265,6 +271,6 @@ client = garth.Client(session=Session(impersonate="chrome120"))
 6. Rename `client.sess` → `client.session`
 7. Rename `refresh_oauth2()` → `refresh_token()`
 8. Remove `pool_connections` / `pool_maxsize` from `configure()`
-9. Remove `oauth2_only` from `dump()` calls
+9. Replace `dump()`/`load()` calls with `configure(storage=garth.FileTokenStorage(path))`
 10. Update exception handling if catching `requests.HTTPError` directly
 11. Check `OAuth2Token.scope` and `.jti` for `None` before use
