@@ -13,7 +13,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 from . import oauth, sso
 from .auth_tokens import OAuth2Token
 from .exc import GarthException, GarthHTTPError, MFARequiredError
-from .sso.state import MFAState
+from .sso.state import MFAChallenge, MFAState
 from .storage import EnvTokenStorage, FileTokenStorage, TokenStorage
 from .telemetry import Telemetry
 
@@ -330,6 +330,46 @@ class Client:
         if self.storage:
             self.storage.save(self.oauth2_token)
         return self.oauth2_token
+
+    def login_mfa_challenge(self, email: str, password: str) -> MFAChallenge:
+        """Start login and return MFA challenge state when MFA is required.
+
+        Args:
+            email: Garmin account email.
+            password: Garmin account password.
+
+        Returns:
+            MFAChallenge with state and session cookies for stateless MFA.
+
+        Raises:
+            GarthException: MFA was not required, or login failed.
+        """
+        result = self.login(email, password, return_on_mfa=True)
+        if isinstance(result, OAuth2Token):
+            raise GarthException(msg="MFA was not required")
+        return MFAChallenge(
+            mfa_state=result, cookies=dict(self.session.cookies.items())
+        )
+
+    def resume_mfa(
+        self, challenge: MFAChallenge, mfa_code: str
+    ) -> OAuth2Token:
+        """Complete a stateless MFA challenge using saved cookies.
+
+        Args:
+            challenge: MFA challenge returned by login_mfa_challenge().
+            mfa_code: User-provided MFA code.
+
+        Returns:
+            OAuth2Token after MFA verification.
+
+        Raises:
+            GarthException: MFA validation failed.
+        """
+        self.session.cookies.clear()
+        for name, value in challenge.cookies.items():
+            self.session.cookies.set(name, value)
+        return self.resume_login(challenge.mfa_state, mfa_code)
 
     def refresh_token(self):
         """Refresh OAuth2 token using the refresh token.

@@ -14,6 +14,7 @@ from .data import (
     WeightData,
 )
 from .http import Client, client
+from .sso.state import MFAChallenge
 from .stats import (
     DailyHRV,
     DailyHydration,
@@ -51,6 +52,7 @@ __all__ = [
     "FitnessActivity",
     "GarminScoresData",
     "HRVData",
+    "MFAChallenge",
     "MorningTrainingReadinessData",
     "MonthlyTrainingStatus",
     "SleepData",
