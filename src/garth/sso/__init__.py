@@ -10,7 +10,7 @@ from ..exc import (
     NetworkError,
     RateLimitError,
 )
-from .state import MFAState
+from .state import MFAChallenge, MFAState
 from .strategy import LoginResult, LoginStrategy
 from .widget_strategy import WidgetStrategy
 
@@ -22,6 +22,7 @@ __all__ = [
     "STRATEGIES",
     "LoginStrategy",
     "LoginResult",
+    "MFAChallenge",
     "handle_mfa",
     "login",
 ]
