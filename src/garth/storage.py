@@ -25,9 +25,6 @@ class _TokenData(TypedDict, total=False):
     refresh_token_expires_at: float | None
     scope: str | None
     jti: str | None
-    mfa_token: str | None
-    mfa_expiration_timestamp: str | None
-    mfa_expiration_timestamp_millis: int | None
     client_id: str | None
 
 
@@ -88,18 +85,15 @@ def _build_token(data: _TokenData) -> OAuth2Token:
     return OAuth2Token(
         access_token=data["access_token"],
         refresh_token=data["refresh_token"],
-        expires_in=data["expires_in"],
+        expires_in=data.get("expires_in"),
         token_type=data.get("token_type", "Bearer"),
         expires_at=data.get("expires_at"),
         refresh_token_expires_in=data.get("refresh_token_expires_in"),
         refresh_token_expires_at=data.get("refresh_token_expires_at"),
         scope=data.get("scope"),
         jti=data.get("jti"),
-        mfa_token=data.get("mfa_token"),
-        mfa_expiration_timestamp=data.get("mfa_expiration_timestamp"),
-        mfa_expiration_timestamp_millis=data.get(
-            "mfa_expiration_timestamp_millis"
-        ),
+        created_at=data.get("created_at"),
+        updated_at=data.get("updated_at"),
         client_id=data.get("client_id"),
     )
 
