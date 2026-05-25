@@ -72,15 +72,21 @@ class MFAChallenge:
             A reconstructed MFAChallenge instance.
 
         Raises:
-            GarthException: If the JSON is malformed or missing required keys.
+            GarthException: If the JSON is malformed or missing required keys,
+                or if the domain is not in the allowlist.
         """
+        from garth.http import ALLOWED_DOMAINS
+
         try:
             parsed_data: dict[str, Any] = json.loads(data)
             mfa_state_data: dict[str, Any] = parsed_data["mfa_state"]
             cookies: dict[str, str] = parsed_data["cookies"]
         except (json.JSONDecodeError, KeyError, TypeError) as e:
             raise GarthException(msg=f"Invalid MFA challenge data: {e}") from e
-        return cls(
-            mfa_state=MFAState(**mfa_state_data),
-            cookies=cookies,
-        )
+        mfa_state = MFAState(**mfa_state_data)
+        if mfa_state.domain not in ALLOWED_DOMAINS:
+            raise GarthException(
+                msg=f"Invalid domain in MFA state: {mfa_state.domain!r}. "
+                f"Allowed: {sorted(ALLOWED_DOMAINS)}"
+            )
+        return cls(mfa_state=mfa_state, cookies=cookies)
