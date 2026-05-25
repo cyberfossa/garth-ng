@@ -1,5 +1,23 @@
 # Changelog
 
+## [2.0.0-alpha](https://github.com/cyberfossa/garth-ng/compare/v1.1.0...v2.0.0-alpha) (2026-05-25)
+
+
+### ⚠ BREAKING CHANGES
+
+* `garth.save()`, `garth.resume()`, `dumps()`, `loads()` and the `oauth2_token` parameter in `configure()` have been removed. Use `FileTokenStorage` or implement the `TokenStorage` protocol instead.
+
+### Features
+
+* replace save/resume API with TokenStorage protocol ([#28](https://github.com/cyberfossa/garth-ng/issues/28)) ([2ac3622](https://github.com/cyberfossa/garth-ng/commit/2ac3622a1db3fb3d7c2b4c49837782f01c4bfd41))
+* **sso:** add stateless MFA API with MFAChallenge serialization ([#41](https://github.com/cyberfossa/garth-ng/issues/41)) ([431bbb9](https://github.com/cyberfossa/garth-ng/commit/431bbb94aea8012bc6d45f2bc2aae2272e0d3c75))
+
+
+### Refactoring
+
+* **auth:** remove legacy OAuth1 token detection ([#34](https://github.com/cyberfossa/garth-ng/issues/34)) ([fff2b42](https://github.com/cyberfossa/garth-ng/commit/fff2b423651b9e14eb14e332d9d9bc406e83ce7d))
+* **storage:** remove _TokenData TypedDict and _build_token helper ([#40](https://github.com/cyberfossa/garth-ng/issues/40)) ([85a99de](https://github.com/cyberfossa/garth-ng/commit/85a99deeea0b866160a22b5fac56c6619d630c58))
+
 ## [1.1.0](https://github.com/cyberfossa/garth-ng/compare/v1.0.0...v1.1.0) (2026-04-12)
 
 
