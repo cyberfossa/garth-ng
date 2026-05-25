@@ -2,21 +2,24 @@ from __future__ import annotations
 
 import json
 import sys
-from collections.abc import Callable, Sequence
+from collections.abc import Sequence
 from typing import cast
 
 import typer
 
-import garth
 from garth import utils as _utils
 
 
-asdict = cast(Callable[[object], object], _utils.asdict)
+asdict = _utils.asdict
 
 
 def _resume(ctx: typer.Context) -> None:
-    obj = cast(dict[str, str], ctx.obj)
-    garth.resume(obj["token_dir"])
+    """Lifecycle hook placeholder invoked by every CLI command.
+
+    Intentionally a no-op; exists so individual command modules share
+    a uniform callback signature that can be extended later without
+    touching every call-site.
+    """
 
 
 def _dump_json(data: object) -> None:

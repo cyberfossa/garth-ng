@@ -62,3 +62,43 @@ garth.configure(
     HTTP 429 (Too Many Requests) is not in the default retry list because
     retrying can make rate limiting worse. Add it explicitly if needed:
     `status_forcelist=(408, 429, 500, 502, 503, 504)`
+
+## Token Persistence
+
+### Custom token storage
+
+Implement the `TokenStorage` protocol to persist tokens in any backend
+(database, secrets manager, etc.) instead of the filesystem:
+
+```python
+from garth import TokenStorage
+from garth.auth_tokens import OAuth2Token
+
+class RedisTokenStorage:
+    def save(self, token: OAuth2Token) -> None:
+        redis.set("garth:token", token.model_dump_json())
+
+    def load(self) -> OAuth2Token | None:
+        data = redis.get("garth:token")
+        return OAuth2Token.model_validate_json(data) if data else None
+
+garth.configure(storage=RedisTokenStorage())
+```
+
+The storage's `save()` is called automatically after each successful login or
+token refresh. `load()` is called once when `configure(storage=...)` is first
+set, so the client resumes any previously saved session immediately.
+
+To use file-based persistence with a custom path:
+
+```python
+from garth import FileTokenStorage
+
+garth.configure(storage=FileTokenStorage("~/.garth"))
+```
+
+To disable persistence (tokens in memory only):
+
+```python
+garth.configure(storage=None)
+```

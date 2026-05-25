@@ -32,30 +32,33 @@ login() ──────────────────► OAuth2Token
   Please login.")` is raised and you must re-authenticate.
 
 !!! tip "Auto-persist on refresh"
-    When `GARTH_HOME` is set (either as an environment variable or via a previous
-    `save()` call), the refreshed token is automatically written back to disk.
-    Your session stays current without any extra code.
+    When `GARTH_HOME` is set as an environment variable, the refreshed token is
+    automatically written back to disk. Your session stays current without any
+    extra code. For custom storage backends, use the
+    [`TokenStorage` protocol](#tokenstorage-protocol) instead.
 
 ## Token Persistence
 
 ### Directory-based storage
 
-The simplest approach: save the token directory after login, then resume it in
-any subsequent script.
+The simplest approach: configure file-backed storage after login, then reuse it
+in any subsequent script.
 
 ```python
+garth.configure(storage=garth.FileTokenStorage("~/.garth"))
 garth.login(input("Email: "), getpass("Password: "))
-garth.save("~/.garth")
+# Token is automatically saved to ~/.garth/oauth2_token.json
 ```
 
 ```python
 # In another script or process
-garth.resume("~/.garth")
+garth.configure(storage=garth.FileTokenStorage("~/.garth"))
 profile = garth.client.username
 ```
 
-Internally, `save()` writes `~/.garth/oauth2_token.json` as human-readable JSON
-(4-space indented). `resume()` reads it back and validates the token structure.
+Internally, `FileTokenStorage.save()` writes `~/.garth/oauth2_token.json` as
+human-readable JSON (4-space indented). `FileTokenStorage.load()` reads it back
+and validates the token structure.
 
 ### Environment variables
 
@@ -91,24 +94,11 @@ data = garth.connectapi("/wellness-service/wellness/dailySummary")
     `GARTH_HOME` and `GARTH_TOKEN` cannot both be set. Garth raises a
     `GarthException` at startup if both environment variables are present.
 
-### Programmatic serialization
+### Custom serialization
 
 For secrets managers, databases, or any storage backend that isn't a filesystem,
-use `dumps()` and `loads()` directly:
-
-```python
-# After login, serialize for storage:
-token_str = garth.client.dumps()
-# Store token_str in your secrets manager, Redis, a DB column, etc.
-
-# Later, in another process, restore it:
-garth.client.loads(token_str)
-data = garth.connectapi("/wellness-service/wellness/dailySummary")
-```
-
-The format is `base64(JSON([{access_token, refresh_token, expires_at,
-refresh_token_expires_at, ...}]))` — a base64-encoded JSON array containing
-one object with all token fields.
+implement the [`TokenStorage` protocol](#tokenstorage-protocol) below. This
+replaces the removed `dumps()` and `loads()` methods from earlier versions.
 
 ## Multi-User Access
 
@@ -123,10 +113,8 @@ session, and configuration:
 
 ```python
 # Load a user's token from your database
-token_b64 = db.get(f"users/{user_id}/garth_token")
-
 client = Client()
-client.loads(token_b64)
+client.configure(storage=DbTokenStorage(user_id))
 
 # Use any API — stats, data models, direct calls
 steps = client.connectapi(
@@ -142,28 +130,57 @@ user's session:
 
 ```python
 client = Client()
-client.loads(token_from_db)
+client.configure(storage=DbTokenStorage(user_id))
 
 WeightData.list(days=7, client=client)
 DailySteps.list(period=7, client=client)
 SleepData.list(days=3, client=client)
 ```
 
-### Persisting refreshed tokens
+### Automatic persistence
 
-Unlike `GARTH_HOME` (which auto-persists to disk), database-backed tokens
-require manual persistence after each API call — the token may have been
-silently refreshed:
+Unlike manual serialization in earlier versions, the `TokenStorage` protocol
+handles persistence automatically. The storage's `save()` fires after login
+and every token refresh — you never need to remember to persist.
+
+### TokenStorage protocol
+
+For production use, implement the `TokenStorage` protocol. The storage's
+`save()` fires automatically after login and every token refresh:
 
 ```python
-def fetch_for_user(user_id: str, path: str):
-    client = Client()
-    client.loads(db.get(f"users/{user_id}/garth_token"))
-    result = client.connectapi(path)
-    # Token may have been refreshed — always persist back
-    db.set(f"users/{user_id}/garth_token", client.dumps())
-    return result
+from garth import TokenStorage
+from garth.auth_tokens import OAuth2Token
+
+class DbTokenStorage:
+    def __init__(self, user_id: str):
+        self.user_id = user_id
+
+    def save(self, token: OAuth2Token) -> None:
+        db.set(f"users/{self.user_id}/garth_token", token.model_dump_json())
+
+    def load(self) -> OAuth2Token | None:
+        data = db.get(f"users/{self.user_id}/garth_token")
+        return OAuth2Token.model_validate_json(data) if data else None
+
+client = Client()
+client.configure(storage=DbTokenStorage(user_id))
+
+# Token is automatically persisted after login and every refresh
+result = client.connectapi("/wellness-service/wellness/dailySummary")
 ```
+
+`load()` is called once when `configure(storage=...)` is set, so the client
+resumes any previously saved session immediately.
+
+For the global singleton, use `garth.configure(storage=...)` to set a custom
+storage, and `garth.configure(storage=None)` to disable persistence (tokens
+in memory only).
+
+!!! warning "Exception handling"
+    If your `TokenStorage.save()` raises an exception, it propagates up through
+    the login or refresh call. Handle errors inside your storage implementation
+    to avoid interrupting the authentication flow.
 
 !!! warning "Thread safety"
     Each `Client` has its own HTTP session, so parallel requests across

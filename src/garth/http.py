@@ -1,5 +1,3 @@
-import base64
-import json
 import os
 import time as _time
 from collections.abc import Callable
@@ -16,12 +14,11 @@ from . import oauth, sso
 from .auth_tokens import OAuth2Token
 from .exc import GarthException, GarthHTTPError, MFARequiredError
 from .sso.state import MFAState
+from .storage import EnvTokenStorage, FileTokenStorage, TokenStorage
 from .telemetry import Telemetry
-from .utils import asdict
 
 
 USER_AGENT = {"User-Agent": "GCM-iOS-5.22.1.4"}
-OAUTH2_TOKEN_FILE = "oauth2_token.json"
 
 _SUPPORTED_METHODS: frozenset[str] = frozenset(get_args(HttpMethod))
 
@@ -58,7 +55,7 @@ class Client:
     status_forcelist: tuple[int, ...] = (408, 500, 502, 503, 504)
     backoff_factor: float = 0.5
     _user_profile: dict[str, Any] | None = None
-    _garth_home: str | None = None
+    storage: TokenStorage | None = None
     telemetry: Telemetry
 
     def __init__(self, session: Session | None = None, **kwargs):
@@ -76,7 +73,10 @@ class Client:
         )
         self.session.headers.update(USER_AGENT)
         self.telemetry = Telemetry()
-        self._auto_resume()
+        if "storage" not in kwargs:
+            default_storage = self._default_storage_from_env()
+            if default_storage is not None:
+                kwargs["storage"] = default_storage
         self.configure(
             timeout=self.timeout,
             retries=self.retries,
@@ -90,7 +90,6 @@ class Client:
     def configure(
         self,
         /,
-        oauth2_token: OAuth2Token | None = None,
         domain: str | None = None,
         proxies: dict[str, str] | None = None,
         ssl_verify: bool | None = None,
@@ -102,17 +101,19 @@ class Client:
         telemetry_send_to_logfire: bool | None = None,
         telemetry_token: str | None = None,
         telemetry_callback: Callable[[dict[str, Any]], None] | None = None,
+        storage: TokenStorage | None = None,
     ):
         """Configure HTTP client and telemetry settings.
 
         All parameters are optional — only provided values are applied.
+
+        Args:
+            storage: Token storage backend, or None for memory-only tokens.
         """
-        if oauth2_token is not None:
-            self.oauth2_token = oauth2_token
         if domain:
             self.domain = domain
         if proxies is not None:
-            self.session.proxies.update(cast(Any, proxies))
+            self.session.proxies.update(proxies.items())
         if ssl_verify is not None:
             self.session.verify = ssl_verify
         if timeout is not None:
@@ -123,6 +124,12 @@ class Client:
             self.status_forcelist = status_forcelist
         if backoff_factor is not None:
             self.backoff_factor = backoff_factor
+        if storage is not None:
+            self.storage = storage
+            if self.storage is not None:
+                token = self.storage.load()
+                if token is not None:
+                    self.oauth2_token = token
 
         self.telemetry.configure(
             enabled=telemetry_enabled,
@@ -131,18 +138,17 @@ class Client:
             callback=telemetry_callback,
         )
 
-    def _auto_resume(self):
-        """Auto-resume session from GARTH_HOME or GARTH_TOKEN env vars."""
+    def _default_storage_from_env(self) -> "TokenStorage | None":
+        """Return default storage from GARTH_HOME/GARTH_TOKEN env vars.
+
+        Returns None when no relevant environment variables are set.
+        """
         settings = GarthSettings()
         if settings.home:
-            self._garth_home = settings.home
-            oauth2_token_path = os.path.join(
-                os.path.expanduser(settings.home), OAUTH2_TOKEN_FILE
-            )
-            if os.path.exists(oauth2_token_path):
-                self.load(settings.home)
+            return FileTokenStorage(settings.home)
         elif settings.token:
-            self.loads(settings.token)
+            return EnvTokenStorage()
+        return None
 
     @property
     def user_profile(self):
@@ -298,8 +304,8 @@ class Client:
             result.ticket,
             result.service_url,
         )
-        if self._garth_home:
-            self.dump(self._garth_home)
+        if self.storage:
+            self.storage.save(self.oauth2_token)
         return self.oauth2_token
 
     def resume_login(self, mfa_state: MFAState, mfa_code: str) -> OAuth2Token:
@@ -321,8 +327,8 @@ class Client:
             result.ticket,
             result.service_url,
         )
-        if self._garth_home:
-            self.dump(self._garth_home)
+        if self.storage:
+            self.storage.save(self.oauth2_token)
         return self.oauth2_token
 
     def refresh_token(self):
@@ -338,8 +344,8 @@ class Client:
         self.oauth2_token = oauth.refresh_oauth2_token(
             self.session, self.oauth2_token
         )
-        if self._garth_home:
-            self.dump(self._garth_home)
+        if self.storage:
+            self.storage.save(self.oauth2_token)
 
     def connectapi(
         self, path: str, method="GET", **kwargs
@@ -375,86 +381,6 @@ class Client:
         assert result is not None, "No result from upload"
         assert isinstance(result, dict)
         return result
-
-    def dump(self, dir_path: str, /):
-        """Persist OAuth2 token to dir_path/oauth2_token.json.
-
-        Args:
-            dir_path: Target directory (created if needed).
-        """
-        dir_path = os.path.expanduser(dir_path)
-        os.makedirs(dir_path, exist_ok=True)
-        if self.oauth2_token:
-            with open(os.path.join(dir_path, OAUTH2_TOKEN_FILE), "w") as f:
-                json.dump(asdict(self.oauth2_token), f, indent=4)
-
-    def dumps(self) -> str:
-        """Serialize OAuth2 token to a base64-encoded string.
-
-        Returns:
-            Base64-encoded JSON string.
-
-        Raises:
-            GarthException: No OAuth2Token available.
-        """
-        if self.oauth2_token:
-            r = [asdict(self.oauth2_token)]
-            s = json.dumps(r)
-            return base64.b64encode(s.encode()).decode()
-
-        raise GarthException(msg="No OAuth2Token available to serialize")
-
-    def load(self, dir_path: str):
-        """Load OAuth2 token from dir_path/oauth2_token.json.
-
-        Args:
-            dir_path: Directory containing token file.
-
-        Raises:
-            GarthException: Token not found.
-        """
-        dir_path = os.path.expanduser(dir_path)
-        oauth2_path = os.path.join(dir_path, OAUTH2_TOKEN_FILE)
-
-        if os.path.exists(oauth2_path):
-            with open(oauth2_path) as f:
-                self.oauth2_token = OAuth2Token(**json.load(f))
-        else:
-            raise GarthException(
-                msg=(
-                    f"No token files found in {dir_path}. "
-                    "Please login with garth.login() first."
-                )
-            )
-
-    def loads(self, s: str):
-        """Deserialize OAuth2 token from a base64-encoded string.
-
-        Args:
-            s: Base64-encoded token string (from dumps() or GARTH_TOKEN).
-
-        Raises:
-            GarthException: Invalid or legacy token format.
-        """
-        data = json.loads(base64.b64decode(s))
-        if (
-            isinstance(data, list)
-            and len(data) == 1
-            and isinstance(data[0], dict)
-            and "access_token" in data[0]
-        ):
-            self.oauth2_token = OAuth2Token(**data[0])
-            return
-
-        if isinstance(data, list) and len(data) == 2:
-            raise GarthException(
-                msg=(
-                    "Legacy token format. "
-                    "Please re-authenticate with garth.login()"
-                )
-            )
-
-        raise GarthException(msg="Unsupported token format")
 
 
 client = Client()

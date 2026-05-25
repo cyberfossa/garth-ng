@@ -37,7 +37,11 @@ pip install garth-ng
 uv add garth-ng
 ```
 
-The `garth` CLI command is included in the base install — no extras needed.
+The `garth` CLI requires typer — install the CLI extra:
+
+```bash
+pip install 'garth-ng[cli]'
+```
 
 ## Quick Start
 
@@ -47,8 +51,8 @@ The `garth` CLI command is included in the base install — no extras needed.
 import garth
 from getpass import getpass
 
+garth.configure(storage=garth.FileTokenStorage("~/.garth"))
 garth.login(input("Email: "), getpass("Password: "))
-garth.save("~/.garth")
 ```
 
 MFA is handled automatically with a terminal prompt. Pass a custom handler if
@@ -63,7 +67,7 @@ garth.login(email, password, prompt_mfa=lambda: input("MFA code: "))
 ```python
 import garth
 
-garth.resume("~/.garth")
+garth.configure(storage=garth.FileTokenStorage("~/.garth"))
 print(garth.client.username)
 ```
 
