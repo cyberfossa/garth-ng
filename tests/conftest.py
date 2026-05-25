@@ -1,7 +1,6 @@
 import os
 import sys
 import time
-from datetime import datetime, timezone
 from pathlib import Path
 
 
@@ -46,11 +45,6 @@ def oauth2_token() -> OAuth2Token:
         refresh_token_expires_at=time.time() + 7199,
         scope="CONNECT_READ CONNECT_WRITE",
         jti="foo",
-        mfa_token="mfa-token",
-        mfa_expiration_timestamp=datetime.fromtimestamp(
-            time.time() + 86400, tz=timezone.utc
-        ).strftime("%Y-%m-%dT%H:%M:%S.000Z"),
-        mfa_expiration_timestamp_millis=int((time.time() + 86400) * 1000),
     )
 
 
