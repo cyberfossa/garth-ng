@@ -2,7 +2,7 @@ import os
 import time as _time
 from collections.abc import Callable
 from typing import IO, Any, cast, get_args
-from urllib.parse import urljoin
+from urllib.parse import urljoin, urlparse
 
 from curl_cffi import CurlMime
 from curl_cffi.requests import HttpMethod, Response, Session
@@ -212,7 +212,8 @@ class Client:
         http_method: HttpMethod = cast(HttpMethod, method_upper)
         request_headers = dict(headers) if headers else {}
         url = f"https://{subdomain}.{self.domain}"
-        if path.startswith(("http://", "https://", "//")):
+        parsed = urlparse(path)
+        if parsed.scheme or path.startswith("//"):
             raise GarthException(
                 msg="Absolute URLs are not allowed in path parameter"
             )

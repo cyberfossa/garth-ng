@@ -4,7 +4,7 @@ import base64
 import json
 import os
 from pathlib import Path
-from typing import Protocol, cast
+from typing import Protocol
 
 from .auth_tokens import OAuth2Token
 from .utils import asdict
@@ -26,15 +26,10 @@ class FileTokenStorage:
     def save(self, token: OAuth2Token) -> None:
         os.makedirs(self.path, mode=0o700, exist_ok=True)
         token_path = self.path / OAUTH2_TOKEN_FILE
-        payload = cast(dict[str, object], asdict(token))
-        content = json.dumps(payload, indent=4)
+        content = json.dumps(asdict(token), indent=4)
         fd = os.open(token_path, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
-        try:
-            with os.fdopen(fd, "w") as f:
-                f.write(content)
-        except BaseException:
-            os.close(fd)
-            raise
+        with os.fdopen(fd, "w") as f:
+            f.write(content)
 
     def load(self) -> OAuth2Token | None:
         oauth2_path = self.path / OAUTH2_TOKEN_FILE

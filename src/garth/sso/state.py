@@ -83,7 +83,10 @@ class MFAChallenge:
             cookies: dict[str, str] = parsed_data["cookies"]
         except (json.JSONDecodeError, KeyError, TypeError) as e:
             raise GarthException(msg=f"Invalid MFA challenge data: {e}") from e
-        mfa_state = MFAState(**mfa_state_data)
+        try:
+            mfa_state = MFAState(**mfa_state_data)
+        except (TypeError, ValueError) as e:
+            raise GarthException(msg=f"Invalid MFA state fields: {e}") from e
         if mfa_state.domain not in ALLOWED_DOMAINS:
             raise GarthException(
                 msg=f"Invalid domain in MFA state: {mfa_state.domain!r}. "
