@@ -1,6 +1,7 @@
 from datetime import date, datetime
 from typing import ClassVar
 
+from pydantic import ConfigDict
 from pydantic.dataclasses import dataclass
 
 from .. import http
@@ -11,7 +12,7 @@ from ._base import Stats
 BASE_PATH = "/usersummary-service/stats/hydration"
 
 
-@dataclass
+@dataclass(config=ConfigDict(extra="ignore"))
 class HydrationLogEntry:
     user_id: int
     calendar_date: date
@@ -21,6 +22,10 @@ class HydrationLogEntry:
     daily_averagein_ml: float | None = None
     sweat_loss_in_ml: float | None = None
     activity_intake_in_ml: float | None = None
+    base_goal_in_ml: float | None = None
+    hydration_measurement_unit: str | None = None
+    hydration_containers: list | None = None
+    hydration_auto_goal_enabled: bool | None = None
 
 
 @dataclass
@@ -100,7 +105,7 @@ class DailyHydration(Stats):
         day: date | str | None = None,
         *,
         client: http.Client | None = None,
-    ) -> dict | None:
+    ) -> HydrationLogEntry | None:
         """Get all hydration data for a day.
 
         Args:
@@ -108,7 +113,7 @@ class DailyHydration(Stats):
             client: Optional HTTP client
 
         Returns:
-            Detailed hydration data dict or None
+            Detailed hydration data or None
         """
         client = client or http.client
         day = format_end_date(day)
@@ -119,4 +124,4 @@ class DailyHydration(Stats):
         assert isinstance(data, dict), (
             f"Expected dict from {path}, got {type(data).__name__}"
         )
-        return camel_to_snake_dict(data)
+        return HydrationLogEntry(**camel_to_snake_dict(data))

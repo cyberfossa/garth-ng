@@ -1,7 +1,9 @@
+from datetime import date
 from unittest.mock import patch
 
 from garth import DailyHydration
 from garth.http import Client
+from garth.stats.hydration import HydrationLogEntry
 from tests.fixture_helpers import load_fixture
 
 
@@ -39,19 +41,21 @@ def test_weekly_with_custom_weeks(authed_client: Client):
 
 
 def test_all_data_success(authed_client: Client):
-    """Test all_data() returns transformed dict."""
+    """Test all_data() returns HydrationLogEntry dataclass."""
     fixture = load_fixture("hydration_all_data.json", subdir="stats")
     with patch.object(authed_client, "connectapi", return_value=fixture):
         result = DailyHydration.all_data("2026-04-06", client=authed_client)
-        assert isinstance(result, dict)
-        assert "user_id" in result
-        assert "calendar_date" in result
-        assert "value_in_ml" in result
-        assert "goal_in_ml" in result
-        assert "last_entry_timestamp_local" in result
-        assert result["user_id"] == 144710582
-        assert result["calendar_date"] == "2026-04-06"
-        assert result["value_in_ml"] == 2.0
+        assert isinstance(result, HydrationLogEntry)
+        assert result.user_id == 144710582
+        assert result.calendar_date == date(2026, 4, 6)
+        assert result.value_in_ml == 2.0
+        assert result.goal_in_ml == 2130.292
+        assert result.base_goal_in_ml == 2129.292
+        assert result.sweat_loss_in_ml == 1.0
+        assert result.activity_intake_in_ml == 2.0
+        assert result.hydration_measurement_unit == "cup"
+        assert result.hydration_containers == []
+        assert result.hydration_auto_goal_enabled is True
         authed_client.connectapi.assert_called_once_with(
             "/usersummary-service/usersummary/hydration/allData/2026-04-06"
         )
