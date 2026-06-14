@@ -66,4 +66,6 @@ class TestStepsGoalGet:
         result = StepsGoal.get("2024-01-15")
 
         assert result is not None
-        mock_client.connectapi.assert_called_once()
+        mock_client.connectapi.assert_called_once_with(
+            "/wellness-service/wellness/wellness-goals/consolidated/steps/2024-01-15"
+        )
