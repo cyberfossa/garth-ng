@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import builtins
-from datetime import date, datetime
+from datetime import date, datetime, timezone
 
 from pydantic.dataclasses import dataclass
 from typing_extensions import Self
@@ -45,7 +45,7 @@ class DailySleepDTO:
     sleep_time_seconds: int
     nap_time_seconds: int
     sleep_window_confirmed: bool
-    sleep_window_confirmation_type: str
+    sleep_window_confirmation_type: str | None
     sleep_start_timestamp_gmt: int
     sleep_end_timestamp_gmt: int
     sleep_start_timestamp_local: int
@@ -130,3 +130,45 @@ class SleepData(Data):
     def list(cls, *args, **kwargs) -> builtins.list[Self]:
         data = super().list(*args, **kwargs)
         return sorted(data, key=lambda x: x.daily_sleep_dto.calendar_date)
+
+    @classmethod
+    def create(
+        cls,
+        *,
+        sleep_start: datetime,
+        sleep_end: datetime,
+        client: http.Client | None = None,
+    ) -> DailySleepDTO | None:
+        """Log a manual sleep record.
+
+        Args:
+            sleep_start: Sleep start time (local)
+            sleep_end: Sleep end time (local)
+            client: Optional HTTP client
+
+        Returns:
+            DailySleepDTO if Garmin returns a body, None for 204
+        """
+        client = client or http.client
+
+        # Calculate GMT and Local representations
+        dt_gmt = sleep_start.astimezone(timezone.utc)
+        dt_local = sleep_start.replace(tzinfo=timezone.utc)
+        dt_end_gmt = sleep_end.astimezone(timezone.utc)
+        dt_end_local = sleep_end.replace(tzinfo=timezone.utc)
+
+        path = "/sleep-service/sleep/dailySleep"
+        response = client.connectapi(
+            path,
+            method="POST",
+            json={
+                "sleepStartTimestampLocal": int(dt_local.timestamp() * 1000),
+                "sleepEndTimestampLocal": int(dt_end_local.timestamp() * 1000),
+                "sleepStartTimestampGMT": int(dt_gmt.timestamp() * 1000),
+                "sleepEndTimestampGMT": int(dt_end_gmt.timestamp() * 1000),
+            },
+        )
+        if not response:
+            return None
+        assert isinstance(response, dict)
+        return DailySleepDTO(**camel_to_snake_dict(response))

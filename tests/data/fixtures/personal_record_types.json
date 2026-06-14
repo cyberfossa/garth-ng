@@ -1,0 +1,410 @@
+[
+  {
+    "id": 1,
+    "key": "pr.label.1k.run",
+    "visible": true,
+    "sport": "RUNNING",
+    "minValue": 995.0,
+    "maxValue": 1016.0
+  },
+  {
+    "id": 2,
+    "key": "pr.label.1mile.run",
+    "visible": true,
+    "sport": "RUNNING",
+    "minValue": 1601.0,
+    "maxValue": 1635.0
+  },
+  {
+    "id": 3,
+    "key": "pr.label.5k.run",
+    "visible": true,
+    "sport": "RUNNING",
+    "minValue": 4980.0,
+    "maxValue": 5079.0
+  },
+  {
+    "id": 4,
+    "key": "pr.label.10k.run",
+    "visible": true,
+    "sport": "RUNNING",
+    "minValue": 9970.0,
+    "maxValue": 10157.0
+  },
+  {
+    "id": 5,
+    "key": "pr.label.half.marathon",
+    "visible": true,
+    "sport": "RUNNING",
+    "minValue": 21065.0,
+    "maxValue": 21429.0
+  },
+  {
+    "id": 6,
+    "key": "pr.label.full.marathon",
+    "visible": true,
+    "sport": "RUNNING",
+    "minValue": 42131.0,
+    "maxValue": 42858.0
+  },
+  {
+    "id": 7,
+    "key": "pr.label.farthest.run",
+    "visible": true,
+    "sport": "RUNNING",
+    "minValue": 0.0,
+    "maxValue": 0.0
+  },
+  {
+    "id": 8,
+    "key": "pr.label.farthest.cycle",
+    "visible": true,
+    "sport": "CYCLING",
+    "minValue": 0.0,
+    "maxValue": 0.0
+  },
+  {
+    "id": 9,
+    "key": "pr.label.max.elev",
+    "visible": true,
+    "sport": "CYCLING",
+    "minValue": 0.0,
+    "maxValue": 0.0
+  },
+  {
+    "id": 10,
+    "key": "pr.label.max.power",
+    "visible": true,
+    "sport": "CYCLING",
+    "minValue": 0.0,
+    "maxValue": 0.0
+  },
+  {
+    "id": 11,
+    "key": "pr.label.40k.cycle",
+    "visible": true,
+    "sport": "CYCLING",
+    "minValue": 39940.0,
+    "maxValue": 40628.0
+  },
+  {
+    "id": 12,
+    "key": "pr.label.steps.best.day",
+    "visible": true,
+    "sport": "STEPS",
+    "minValue": 0.0,
+    "maxValue": 0.0
+  },
+  {
+    "id": 13,
+    "key": "pr.label.steps.best.week",
+    "visible": true,
+    "sport": "STEPS",
+    "minValue": 0.0,
+    "maxValue": 0.0
+  },
+  {
+    "id": 14,
+    "key": "pr.label.steps.best.month",
+    "visible": true,
+    "sport": "STEPS",
+    "minValue": 0.0,
+    "maxValue": 0.0
+  },
+  {
+    "id": 15,
+    "key": "pr.label.steps.longest.streak",
+    "visible": true,
+    "sport": "STEPS",
+    "minValue": 0.0,
+    "maxValue": 0.0
+  },
+  {
+    "id": 16,
+    "key": "pr.label.steps.current.streak",
+    "visible": true,
+    "sport": "STEPS",
+    "minValue": 0.0,
+    "maxValue": 0.0
+  },
+  {
+    "id": 17,
+    "key": "pr.label.longest.poolswim",
+    "visible": true,
+    "sport": "SWIMMING",
+    "minValue": 0.0,
+    "maxValue": 0.0
+  },
+  {
+    "id": 18,
+    "key": "pr.label.100m.poolswim",
+    "visible": true,
+    "sport": "SWIMMING",
+    "minValue": 99.0,
+    "maxValue": 101.0
+  },
+  {
+    "id": 19,
+    "key": "pr.label.100yd.poolswim",
+    "visible": true,
+    "sport": "SWIMMING",
+    "minValue": 91.0,
+    "maxValue": 91.5
+  },
+  {
+    "id": 20,
+    "key": "pr.label.400m.poolswim",
+    "visible": true,
+    "sport": "SWIMMING",
+    "minValue": 399.0,
+    "maxValue": 401.0
+  },
+  {
+    "id": 21,
+    "key": "pr.label.500yd.poolswim",
+    "visible": true,
+    "sport": "SWIMMING",
+    "minValue": 457.0,
+    "maxValue": 457.5
+  },
+  {
+    "id": 22,
+    "key": "pr.label.750m.poolswim",
+    "visible": true,
+    "sport": "SWIMMING",
+    "minValue": 749.5,
+    "maxValue": 750.5
+  },
+  {
+    "id": 23,
+    "key": "pr.label.1000m.poolswim",
+    "visible": true,
+    "sport": "SWIMMING",
+    "minValue": 999.5,
+    "maxValue": 1000.5
+  },
+  {
+    "id": 24,
+    "key": "pr.label.1000yd.poolswim",
+    "visible": true,
+    "sport": "SWIMMING",
+    "minValue": 914.0,
+    "maxValue": 914.5
+  },
+  {
+    "id": 25,
+    "key": "pr.label.1500m.poolswim",
+    "visible": true,
+    "sport": "SWIMMING",
+    "minValue": 1499.5,
+    "maxValue": 1500.5
+  },
+  {
+    "id": 26,
+    "key": "pr.label.1650yd.poolswim",
+    "visible": true,
+    "sport": "SWIMMING",
+    "minValue": 1508.0,
+    "maxValue": 1509.0
+  },
+  {
+    "id": 27,
+    "key": "pr.label.activeseconds.best.day",
+    "visible": false,
+    "sport": "STEPS",
+    "minValue": 0.0,
+    "maxValue": 86400.0
+  },
+  {
+    "id": 28,
+    "key": "pr.label.max.rep.weight.bench_press",
+    "visible": true,
+    "sport": "TRAINING",
+    "minValue": 0.0,
+    "maxValue": 0.0
+  },
+  {
+    "id": 29,
+    "key": "pr.label.max.rep.weight.overhead_press",
+    "visible": true,
+    "sport": "TRAINING",
+    "minValue": 0.0,
+    "maxValue": 0.0
+  },
+  {
+    "id": 30,
+    "key": "pr.label.max.rep.weight.squat",
+    "visible": true,
+    "sport": "TRAINING",
+    "minValue": 0.0,
+    "maxValue": 0.0
+  },
+  {
+    "id": 31,
+    "key": "pr.label.max.rep.weight.deadlift",
+    "visible": true,
+    "sport": "TRAINING",
+    "minValue": 0.0,
+    "maxValue": 0.0
+  },
+  {
+    "id": 32,
+    "key": "pr.label.max.rep.weight.row",
+    "visible": true,
+    "sport": "TRAINING",
+    "minValue": 0.0,
+    "maxValue": 0.0
+  },
+  {
+    "id": 33,
+    "key": "pr.label.pushes.best.day",
+    "visible": true,
+    "sport": "WHEELCHAIR_PUSH_WALK",
+    "minValue": 0.0,
+    "maxValue": 0.0
+  },
+  {
+    "id": 34,
+    "key": "pr.label.pushes.best.week",
+    "visible": true,
+    "sport": "WHEELCHAIR_PUSH_WALK",
+    "minValue": 0.0,
+    "maxValue": 0.0
+  },
+  {
+    "id": 35,
+    "key": "pr.label.pushes.best.month",
+    "visible": true,
+    "sport": "WHEELCHAIR_PUSH_WALK",
+    "minValue": 0.0,
+    "maxValue": 0.0
+  },
+  {
+    "id": 36,
+    "key": "pr.label.pushes.longest.streak",
+    "visible": true,
+    "sport": "WHEELCHAIR_PUSH_WALK",
+    "minValue": 0.0,
+    "maxValue": 0.0
+  },
+  {
+    "id": 37,
+    "key": "pr.label.pushes.current.streak",
+    "visible": true,
+    "sport": "WHEELCHAIR_PUSH_WALK",
+    "minValue": 0.0,
+    "maxValue": 0.0
+  },
+  {
+    "id": 38,
+    "key": "pr.label.1k.wheelchair.run",
+    "visible": true,
+    "sport": "WHEELCHAIR_PUSH_RUN",
+    "minValue": 995.0,
+    "maxValue": 1016.0
+  },
+  {
+    "id": 39,
+    "key": "pr.label.1mile.wheelchair.run",
+    "visible": true,
+    "sport": "WHEELCHAIR_PUSH_RUN",
+    "minValue": 1601.0,
+    "maxValue": 1635.0
+  },
+  {
+    "id": 40,
+    "key": "pr.label.5k.wheelchair.run",
+    "visible": true,
+    "sport": "WHEELCHAIR_PUSH_RUN",
+    "minValue": 4980.0,
+    "maxValue": 5079.0
+  },
+  {
+    "id": 41,
+    "key": "pr.label.10k.wheelchair.run",
+    "visible": true,
+    "sport": "WHEELCHAIR_PUSH_RUN",
+    "minValue": 9970.0,
+    "maxValue": 10157.0
+  },
+  {
+    "id": 42,
+    "key": "pr.label.half.marathon.wheelchair.run",
+    "visible": true,
+    "sport": "WHEELCHAIR_PUSH_RUN",
+    "minValue": 21065.0,
+    "maxValue": 21429.0
+  },
+  {
+    "id": 43,
+    "key": "pr.label.full.marathon.wheelchair.run",
+    "visible": true,
+    "sport": "WHEELCHAIR_PUSH_RUN",
+    "minValue": 42131.0,
+    "maxValue": 42858.0
+  },
+  {
+    "id": 44,
+    "key": "pr.label.longest.wheelchair.push",
+    "visible": true,
+    "sport": "WHEELCHAIR_PUSH_RUN",
+    "minValue": 0.0,
+    "maxValue": 0.0
+  },
+  {
+    "id": 45,
+    "key": "pr.label.max.rep.weight.barbell_biceps_curl",
+    "visible": true,
+    "sport": "TRAINING",
+    "minValue": 0.0,
+    "maxValue": 0.0
+  },
+  {
+    "id": 46,
+    "key": "pr.label.max.rep.weight.dumbbell_squat",
+    "visible": true,
+    "sport": "TRAINING",
+    "minValue": 0.0,
+    "maxValue": 0.0
+  },
+  {
+    "id": 47,
+    "key": "pr.label.max.rep.weight.dumbbell_row",
+    "visible": true,
+    "sport": "TRAINING",
+    "minValue": 0.0,
+    "maxValue": 0.0
+  },
+  {
+    "id": 48,
+    "key": "pr.label.max.rep.weight.dumbbell_deadlift",
+    "visible": true,
+    "sport": "TRAINING",
+    "minValue": 0.0,
+    "maxValue": 0.0
+  },
+  {
+    "id": 49,
+    "key": "pr.label.max.rep.weight.dumbbell_biceps_curl",
+    "visible": true,
+    "sport": "TRAINING",
+    "minValue": 0.0,
+    "maxValue": 0.0
+  },
+  {
+    "id": 50,
+    "key": "pr.label.max.rep.weight.dumbbell_bench_press",
+    "visible": true,
+    "sport": "TRAINING",
+    "minValue": 0.0,
+    "maxValue": 0.0
+  },
+  {
+    "id": 51,
+    "key": "pr.label.max.rep.weight.overhead_dumbbell_press",
+    "visible": true,
+    "sport": "TRAINING",
+    "minValue": 0.0,
+    "maxValue": 0.0
+  }
+]

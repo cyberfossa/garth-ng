@@ -1,5 +1,6 @@
 from .data import (
     Activity,
+    BloodPressure,
     BodyBatteryData,
     DailyBodyBatteryStress,
     DailyHeartRate,
@@ -9,9 +10,16 @@ from .data import (
     GarminScoresData,
     HRVData,
     MorningTrainingReadinessData,
+    NutritionLog,
+    NutritionSettings,
+    NutritionStatus,
+    PersonalRecord,
+    PersonalRecordType,
     SleepData,
+    StepsGoal,
     TrainingReadinessData,
     WeightData,
+    WeightGoal,
 )
 from .http import Client, client
 from .sso.state import MFAChallenge
@@ -36,6 +44,7 @@ from .version import __version__
 
 __all__ = [
     "Activity",
+    "BloodPressure",
     "BodyBatteryData",
     "Client",
     "DailyBodyBatteryStress",
@@ -55,7 +64,13 @@ __all__ = [
     "MFAChallenge",
     "MorningTrainingReadinessData",
     "MonthlyTrainingStatus",
+    "NutritionLog",
+    "NutritionSettings",
+    "NutritionStatus",
+    "PersonalRecord",
+    "PersonalRecordType",
     "SleepData",
+    "StepsGoal",
     "TrainingReadinessData",
     "UserProfile",
     "UserSettings",
@@ -67,6 +82,7 @@ __all__ = [
     "WeeklyStress",
     "WeeklyTrainingStatus",
     "WeightData",
+    "WeightGoal",
     "__version__",
     "client",
     "configure",

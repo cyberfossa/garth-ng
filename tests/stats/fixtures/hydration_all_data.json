@@ -1,0 +1,13 @@
+{
+  "userId": 144710582,
+  "calendarDate": "2026-04-06",
+  "lastEntryTimestampLocal": "2026-04-06T01:27:57.0",
+  "valueInML": 2.0,
+  "goalInML": 2130.292,
+  "baseGoalInML": 2129.292,
+  "sweatLossInML": 1.0,
+  "activityIntakeInML": 2.0,
+  "hydrationMeasurementUnit": "cup",
+  "hydrationContainers": [],
+  "hydrationAutoGoalEnabled": true
+}
