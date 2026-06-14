@@ -1,6 +1,6 @@
 [project]
 name = "garth-ng"
-version = "2.0.0-alpha"
+version = "2.0.0-alpha.1"
 description = "Garmin SSO auth + Connect Python client (maintained fork of matin/garth)"
 authors = [
     { name = "CyberFossa", email = "cyberfossadev@proton.me" },
