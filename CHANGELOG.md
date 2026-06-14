@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.0.0-alpha.1](https://github.com/cyberfossa/garth-ng/compare/v2.0.0-alpha...v2.0.0-alpha.1) (2026-06-14)
+
+
+### Features
+
+* **data:** add new data types, CLI commands, and documentation ([#23](https://github.com/cyberfossa/garth-ng/issues/23)) ([ccea1da](https://github.com/cyberfossa/garth-ng/commit/ccea1da8bd4ec6e1b247cdc4b08cb9f2d2ac719e))
+
 ## [2.0.0-alpha](https://github.com/cyberfossa/garth-ng/compare/v1.1.0...v2.0.0-alpha) (2026-05-25)
 
 
