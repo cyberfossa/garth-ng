@@ -26,18 +26,20 @@ def test_activity_details():
     assert isinstance(result, ActivityDetails)
     assert result.activity_id == fixture["activityId"]
     assert result.details_available == fixture["detailsAvailable"]
-    client.connectapi.assert_called_once()
-    call_path = client.connectapi.call_args[0][0]
-    assert "/activity-service/activity/12345/details" in call_path
-    assert "maxChartSize=1400" in call_path
+    client.connectapi.assert_called_once_with(
+        "/activity-service/activity/12345/details",
+        params={"maxChartSize": 1400},
+    )
 
 
 def test_activity_details_custom_chart_size():
     fixture = load_fixture("activity_details.json")
     client = _mock_client(fixture)
     Activity.details(12345, max_chart_size=500, client=client)
-    call_path = client.connectapi.call_args[0][0]
-    assert "maxChartSize=500" in call_path
+    client.connectapi.assert_called_once_with(
+        "/activity-service/activity/12345/details",
+        params={"maxChartSize": 500},
+    )
 
 
 def test_activity_exercise_sets():

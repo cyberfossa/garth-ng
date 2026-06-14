@@ -335,11 +335,8 @@ class Activity:
             ActivityDetails with metrics and chart data
         """
         client = client or http.client
-        path = (
-            f"/activity-service/activity/{activity_id}"
-            f"/details?maxChartSize={max_chart_size}"
-        )
-        data = client.connectapi(path)
+        path = f"/activity-service/activity/{activity_id}/details"
+        data = client.connectapi(path, params={"maxChartSize": max_chart_size})
         assert isinstance(data, dict), (
             f"Expected dict from {path}, got {type(data).__name__}"
         )
