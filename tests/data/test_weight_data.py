@@ -7,6 +7,8 @@ from freezegun import freeze_time
 from garth.data import WeightData
 from garth.fit import build_body_composition
 from garth.http import Client
+from garth.utils import camel_to_snake_dict
+from tests.fixture_helpers import load_fixture
 
 
 def decode_fit_weight_scale(fit_bytes: bytes) -> dict:
@@ -317,3 +319,57 @@ def test_build_body_composition_rejects_invalid_visceral_fat_rating():
         build_body_composition(
             weight=75.0, timestamp=ts, visceral_fat_rating=-1
         )
+
+
+def test_weight_latest_parses_fixture():
+    fixture = load_fixture("weight_latest.json")
+    weight_data = WeightData(**camel_to_snake_dict(fixture))
+    assert weight_data is not None
+    assert weight_data.weight == 907.0
+    assert weight_data.source_type == "MANUAL"
+    assert weight_data.bmi is None
+    assert weight_data.body_fat is None
+
+
+def test_weight_latest_with_mock_client(authed_client):
+    fixture = load_fixture("weight_latest.json")
+    authed_client.connectapi = Mock(return_value=fixture)
+
+    weight_data = WeightData.latest(client=authed_client)
+
+    assert weight_data is not None
+    assert weight_data.weight == 907.0
+    assert weight_data.source_type == "MANUAL"
+    authed_client.connectapi.assert_called_once_with(
+        "/weight-service/weight/latest", params={"ignorePriority": "true"}
+    )
+
+
+def test_weight_latest_with_date_param(authed_client):
+    fixture = load_fixture("weight_latest.json")
+    authed_client.connectapi = Mock(return_value=fixture)
+
+    weight_data = WeightData.latest(day=date(2026, 1, 1), client=authed_client)
+
+    assert weight_data is not None
+    assert weight_data.weight == 907.0
+    authed_client.connectapi.assert_called_once_with(
+        "/weight-service/weight/latest",
+        params={"ignorePriority": "true", "date": "2026-01-01"},
+    )
+
+
+def test_weight_latest_returns_none_for_empty_response(authed_client):
+    authed_client.connectapi = Mock(return_value=None)
+
+    weight_data = WeightData.latest(client=authed_client)
+
+    assert weight_data is None
+
+
+def test_weight_latest_returns_none_for_empty_dict(authed_client):
+    authed_client.connectapi = Mock(return_value={})
+
+    weight_data = WeightData.latest(client=authed_client)
+
+    assert weight_data is None
