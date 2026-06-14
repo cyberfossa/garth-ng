@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import builtins
-from datetime import date, datetime
+from datetime import date, datetime, timezone
 
 from pydantic.dataclasses import dataclass
 from typing_extensions import Self
@@ -150,17 +150,22 @@ class SleepData(Data):
             DailySleepDTO if Garmin returns a body, None for 204
         """
         client = client or http.client
+
+        # Calculate GMT and Local representations
+        dt_gmt = sleep_start.astimezone(timezone.utc)
+        dt_local = sleep_start.replace(tzinfo=timezone.utc)
+        dt_end_gmt = sleep_end.astimezone(timezone.utc)
+        dt_end_local = sleep_end.replace(tzinfo=timezone.utc)
+
         path = "/sleep-service/sleep/dailySleep"
         response = client.connectapi(
             path,
             method="POST",
             json={
-                "sleepStartTimestampLocal": int(
-                    sleep_start.timestamp() * 1000
-                ),
-                "sleepEndTimestampLocal": int(sleep_end.timestamp() * 1000),
-                "sleepStartTimestampGMT": int(sleep_start.timestamp() * 1000),
-                "sleepEndTimestampGMT": int(sleep_end.timestamp() * 1000),
+                "sleepStartTimestampLocal": int(dt_local.timestamp() * 1000),
+                "sleepEndTimestampLocal": int(dt_end_local.timestamp() * 1000),
+                "sleepStartTimestampGMT": int(dt_gmt.timestamp() * 1000),
+                "sleepEndTimestampGMT": int(dt_end_gmt.timestamp() * 1000),
             },
         )
         if not response:

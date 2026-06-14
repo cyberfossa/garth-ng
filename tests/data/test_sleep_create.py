@@ -36,3 +36,34 @@ def test_sleep_create_empty_response(authed_client: Client):
         sleep_start=sleep_start, sleep_end=sleep_end, client=authed_client
     )
     assert result is None
+
+
+def test_sleep_create_timezone_aware(authed_client: Client):
+    """Test SleepData.create() with timezone-aware datetimes."""
+    from datetime import timedelta, timezone
+
+    fixture = load_fixture("sleep_create_response.json")
+    authed_client.connectapi = MagicMock(return_value=fixture)
+
+    tz = timezone(timedelta(hours=2))
+    sleep_start = datetime(2026, 4, 6, 22, 0, tzinfo=tz)
+    sleep_end = datetime(2026, 4, 7, 6, 0, tzinfo=tz)
+
+    result = SleepData.create(
+        sleep_start=sleep_start, sleep_end=sleep_end, client=authed_client
+    )
+
+    assert result is not None
+    authed_client.connectapi.assert_called_once()
+    call_kwargs = authed_client.connectapi.call_args
+    posted_json = call_kwargs.kwargs["json"]
+
+    # 22:00 UTC+2 is 20:00 UTC -> 1775505600000 ms
+    assert posted_json["sleepStartTimestampGMT"] == 1775505600000
+    # 22:00 as local timestamp -> 1775512800000 ms
+    assert posted_json["sleepStartTimestampLocal"] == 1775512800000
+
+    # 06:00 UTC+2 is 04:00 UTC -> 1775534400000 ms
+    assert posted_json["sleepEndTimestampGMT"] == 1775534400000
+    # 06:00 as local timestamp -> 1775541600000 ms
+    assert posted_json["sleepEndTimestampLocal"] == 1775541600000
