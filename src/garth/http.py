@@ -2,7 +2,7 @@ import os
 import time as _time
 from collections.abc import Callable
 from typing import IO, Any, cast, get_args
-from urllib.parse import urljoin
+from urllib.parse import urljoin, urlparse
 
 from curl_cffi import CurlMime
 from curl_cffi.requests import HttpMethod, Response, Session
@@ -19,6 +19,8 @@ from .telemetry import Telemetry
 
 
 USER_AGENT = {"User-Agent": "GCM-iOS-5.22.1.4"}
+
+ALLOWED_DOMAINS: frozenset[str] = frozenset({"garmin.com", "garmin.cn"})
 
 _SUPPORTED_METHODS: frozenset[str] = frozenset(get_args(HttpMethod))
 
@@ -111,6 +113,11 @@ class Client:
             storage: Token storage backend, or None for memory-only tokens.
         """
         if domain:
+            if domain not in ALLOWED_DOMAINS:
+                raise GarthException(
+                    msg=f"Unsupported domain: {domain!r}. "
+                    f"Allowed: {sorted(ALLOWED_DOMAINS)}"
+                )
             self.domain = domain
         if proxies is not None:
             self.session.proxies.update(proxies.items())
@@ -205,6 +212,11 @@ class Client:
         http_method: HttpMethod = cast(HttpMethod, method_upper)
         request_headers = dict(headers) if headers else {}
         url = f"https://{subdomain}.{self.domain}"
+        parsed = urlparse(path)
+        if parsed.scheme or path.startswith("//"):
+            raise GarthException(
+                msg="Absolute URLs are not allowed in path parameter"
+            )
         url = urljoin(url, path)
         if referrer is True and self.last_resp:
             request_headers["referer"] = self.last_resp.url
